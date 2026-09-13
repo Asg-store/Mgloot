@@ -17,5 +17,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: MgLoot-App
+        name: Mgloot-App
         path: app-release.apk
