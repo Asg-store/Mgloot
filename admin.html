@@ -1283,6 +1283,27 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
   </div>
 
   <div class="panel">
+    <div class="panel-top"><span class="panel-title">🛡️ Abonnement VPN</span></div>
+    <div style="padding:16px">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Définissez les prix des abonnements + le fichier <b>.conf</b> livré au client après paiement (le client paie avec son portefeuille).</p>
+      <div class="form-grp"><label>Devise des prix</label>
+        <select class="inp inp-sel" id="vsub-cur"><option value="xof">XOF</option><option value="eur">€ EUR</option><option value="usd">$ USD</option></select></div>
+      <div class="f-row" style="gap:8px">
+        <div class="form-grp" style="flex:1"><label>1 Semaine</label><input class="inp" id="vsub-week" type="number" min="0" placeholder="0"/></div>
+        <div class="form-grp" style="flex:1"><label>1 Mois</label><input class="inp" id="vsub-month" type="number" min="0" placeholder="0"/></div>
+        <div class="form-grp" style="flex:1"><label>1 An</label><input class="inp" id="vsub-year" type="number" min="0" placeholder="0"/></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0"><input type="checkbox" id="vsub-trial"/> 🎁 Activer l'essai gratuit 5 heures</label>
+      <div class="form-grp"><label>Config VPN (.conf) — collez le texte OU choisissez un fichier</label>
+        <textarea class="inp" id="vsub-conf" rows="6" placeholder="[Interface]&#10;PrivateKey = ...&#10;Address = ...&#10;[Peer]&#10;..." style="font-family:monospace;font-size:11px;line-height:1.5"></textarea>
+        <input type="file" id="vsub-file" accept=".conf,.txt,text/plain,application/octet-stream" onchange="onVpnSubFilePick(event)" style="font-size:12px;margin-top:6px"/>
+        <div id="vsub-file-status" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
+      </div>
+      <button class="save-btn" onclick="saveVpnSub()" style="margin-top:8px">💾 Enregistrer l'abonnement VPN</button>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-top"><span class="panel-title">🔐 Boutique VPN (WireGuard)</span>
       <button class="btn-add" onclick="resetVpnForm()" style="padding:6px 10px">+ Nouveau</button></div>
     <div style="padding:16px">
@@ -2860,7 +2881,7 @@ function goTab(id){
   if(id==='orders')loadOrders();
   if(id==='payments')loadPayments();
   if(id==='announce'){loadAnnounce();loadPromos();loadHotVideosAdmin();loadInviteConfig();}
-  if(id==='rewards'){try{checkCronHealth();}catch(e){}try{loadPointsShopToggle();}catch(e){}try{loadArenaToggle();}catch(e){}}
+  if(id==='rewards'){try{checkCronHealth();}catch(e){}try{loadPointsShopToggle();}catch(e){}try{loadArenaToggle();}catch(e){}try{loadVpnSub();}catch(e){}}
   if(id==='logo'){ensureImgbbKey().then(renderImgbbKeyBox);}
   if(id==='accounts'){loadAccounts();aoFillGames();aoRenderThumbs();loadImgbbKey();loadCloudinaryCfg();}
   if(id==='reports')loadReports();
@@ -4742,6 +4763,45 @@ function renderVpnAdmin(){
       '<button style="'+bs+'" onclick="toggleVpn(\''+v.id+'\','+(v.active===false)+')">'+(v.active===false?'👁️':'🚫')+'</button>'+
       '<button style="'+bs+';color:#ff5a5a" onclick="deleteVpn(\''+v.id+'\')">🗑</button></div>';
   }).join('');
+}
+// ── 🛡️ Abonnement VPN (prix + essai + config .conf) ──
+var _VSUB_RATES={eur:1,usd:1.16,xof:655.957};
+function onVpnSubFilePick(e){
+  var f=(e.target.files||[])[0];if(!f)return;
+  var st=document.getElementById('vsub-file-status');
+  var r=new FileReader();
+  r.onload=function(){document.getElementById('vsub-conf').value=String(r.result||'');if(st)st.textContent='✅ Fichier chargé ('+f.name+')';};
+  r.onerror=function(){if(st)st.textContent='❌ Lecture impossible';};
+  r.readAsText(f);
+}
+async function loadVpnSub(){
+  try{
+    var d=await db.collection('config').doc('vpnsub').get();var v=(d.exists&&d.data())||{};
+    var cur=v.priceCur||'xof';var rate=_VSUB_RATES[cur]||1;
+    var toCur=function(eur){return eur?Math.round(eur*rate*100)/100:'';};
+    document.getElementById('vsub-cur').value=cur;
+    document.getElementById('vsub-week').value=toCur(+v.priceWeek||0)||'';
+    document.getElementById('vsub-month').value=toCur(+v.priceMonth||0)||'';
+    document.getElementById('vsub-year').value=toCur(+v.priceYear||0)||'';
+    document.getElementById('vsub-trial').checked=!!v.trial;
+    document.getElementById('vsub-conf').value=v.conf||'';
+  }catch(e){}
+}
+async function saveVpnSub(){
+  try{
+    var cur=document.getElementById('vsub-cur').value||'xof';var rate=_VSUB_RATES[cur]||1;
+    var toEur=function(id){var n=parseFloat(document.getElementById(id).value);return (isNaN(n)||n<=0)?0:Math.round((n/rate)*10000)/10000;};
+    await db.collection('config').doc('vpnsub').set({
+      priceCur:cur,
+      priceWeek:toEur('vsub-week'),
+      priceMonth:toEur('vsub-month'),
+      priceYear:toEur('vsub-year'),
+      trial:document.getElementById('vsub-trial').checked,
+      conf:(document.getElementById('vsub-conf').value||'').trim(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    toast('✅ Abonnement VPN enregistré');
+  }catch(e){toast('❌ '+(e.message||'échec'),true);}
 }
 function resetVpnForm(){
   ['vpn-edit-id','vpn-name','vpn-desc','vpn-price','vpn-points'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});

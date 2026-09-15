@@ -1976,14 +1976,7 @@ body.ios .pnotif .pn-ic{border-radius:11px}
     <div class="screen-title">🔐 VPN</div>
   </div>
   <div class="screen-body">
-    <p class="sub" style="margin:0 0 14px">Fichiers WireGuard prêts à l'emploi. Achetez, puis téléchargez votre fichier <b>.conf</b> à importer dans l'app WireGuard.</p>
-    <div id="vpn-mine-wrap" style="display:none">
-      <h4 style="margin:0 0 8px;font-size:13px;color:var(--text2)">📥 Mes VPN achetés</h4>
-      <div id="vpn-mine-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px"></div>
-    </div>
-    <div id="vpn-grid" style="display:flex;flex-direction:column;gap:12px">
-      <p class="sub" style="margin:0">Chargement…</p>
-    </div>
+    <div id="vpn-body"><p class="sub" style="margin:0">Chargement…</p></div>
 
     <div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:22px 0 8px">📲 COMMENT L'UTILISER</div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:13px;color:var(--text2);line-height:1.9">
@@ -2741,6 +2734,14 @@ function wrapEmoji(root){
 })();
 let shopConfig={deliveryFeeType:'none',deliveryFeeValue:0};
 async function loadConfig(){
+  // 🛡️ Config abonnement VPN (prix, essai, config .conf) définie par l'admin
+  db.collection('config').doc('vpnsub').onSnapshot(function(d){
+    vpnSub=(d.exists&&d.data())||{};
+    try{if(document.getElementById('screen-vpn')&&document.getElementById('screen-vpn').classList.contains('open'))renderVpnScreen();}catch(e){}
+    try{updateVpnBadge();}catch(e){}
+  },function(){});
+  // ⏱️ Compte à rebours du badge / de l'écran VPN (toutes les 30 s)
+  try{setInterval(function(){try{updateVpnBadge();var c=document.getElementById('vpn-count');if(c){var u=vpnActiveMs();if(u)c.textContent=fmtVpnDur(u-Date.now());else if(document.getElementById('screen-vpn').classList.contains('open'))renderVpnScreen();}}catch(e){}},30000);}catch(e){}
   // Écoute en temps réel pour récupérer logo, réseaux sociaux, frais, version…
   db.collection('config').doc('shop').onSnapshot(doc=>{
     if(doc.exists){
@@ -5350,6 +5351,8 @@ function watchAccountStatus(uid){
     const data=d.data()||{};
     userData=data;                         // état points / portefeuille global
     _userLoaded=true;                      // ✅ vraies données reçues
+    try{updateVpnBadge();}catch(e){}       // 🛡️ badge « VPN actif »
+    try{if(document.getElementById('screen-vpn')&&document.getElementById('screen-vpn').classList.contains('open'))renderVpnScreen();}catch(e){}
     checkMissionReset&&checkMissionReset(); // réinit missions honorée seulement maintenant
     refreshRewardsUI();                    // met à jour les soldes affichés
     try{if(document.getElementById('screen-profile').classList.contains('open'))refreshProfileUI();}catch(_){}
@@ -5959,7 +5962,7 @@ function prepScreen(name){
   if(name==='marketplace')loadMarketplace();
   if(name==='wallet')openWallet();
   if(name==='points')openPoints();
-  if(name==='vpn')loadVpnFiles();
+  if(name==='vpn')renderVpnScreen();
   if(name==='social'){openSocial();loadHotVideos();maybeShowScreenAd('social');}
   if(name==='reviews')openReviews();
   if(name==='about')renderAbout();
@@ -7433,6 +7436,125 @@ function setCurrency(c){
 /* ═══════════ BOUTIQUE VPN (WireGuard) ═══════════ */
 function vEsc(s){return (''+(s||'')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 let vpnFiles=[],_vpnLoaded=false,myVpn=[],_myVpnUnsub=null;
+/* ═══════════ 🛡️ ABONNEMENT VPN ═══════════ */
+var vpnSub={};   // config admin : {priceWeek,priceMonth,priceYear,priceCur,trial,conf}
+function vpnPlans(){
+  return [
+    {key:'week', lb:'1 Semaine', dur:7*24*3600*1000,   price:+vpnSub.priceWeek||0,  ic:'📅'},
+    {key:'month',lb:'1 Mois',    dur:30*24*3600*1000,  price:+vpnSub.priceMonth||0, ic:'🗓️'},
+    {key:'year', lb:'1 An',      dur:365*24*3600*1000, price:+vpnSub.priceYear||0,  ic:'⭐'}
+  ];
+}
+function vpnActiveMs(){
+  try{var u=userData&&userData.vpnUntil;var ms=(u&&u.toMillis)?u.toMillis():(typeof u==='number'?u:0);return ms>Date.now()?ms:0;}catch(e){return 0;}
+}
+function fmtVpnDur(ms){
+  var s=Math.max(0,Math.floor(ms/1000)),d=Math.floor(s/86400);s-=d*86400;var h=Math.floor(s/3600);s-=h*3600;var m=Math.floor(s/60);
+  if(d>0)return d+' j '+h+' h';if(h>0)return h+' h '+m+' min';return m+' min';
+}
+// 🎮 Test de ping graphique
+var _pinging=false;
+function _pingColor(v){return v<80?'#00e676':v<150?'#f5a623':v<250?'#ff9500':'#ff5a5a';}
+function _pingOnce(){return new Promise(function(res){var t=performance.now(),d=false;var img=new Image();function fin(){if(d)return;d=true;res(Math.round(performance.now()-t));}img.onload=fin;img.onerror=fin;img.src='https://www.gstatic.com/generate_204?_='+Date.now()+'_'+Math.random();setTimeout(fin,3000);});}
+function _pingBars(s){var mx=Math.max(120,Math.max.apply(null,s));return s.map(function(v){var h=Math.max(6,Math.round(v/mx*60));return '<div style="width:16px;height:'+h+'px;border-radius:4px;background:'+_pingColor(v)+'"></div>';}).join('');}
+async function startPingTest(){
+  if(_pinging)return;_pinging=true;
+  var btn=document.getElementById('ping-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Test…';}
+  var n=document.getElementById('ping-num'),b=document.getElementById('ping-bars'),q=document.getElementById('ping-quality');if(q)q.textContent='';
+  var arr=[];for(var i=0;i<6;i++){var dd=await _pingOnce();arr.push(dd);if(n){n.textContent=dd;n.style.color=_pingColor(dd);}if(b)b.innerHTML=_pingBars(arr);await new Promise(function(r){setTimeout(r,220);});}
+  var use=arr.slice(1),avg=Math.round(use.reduce(function(a,c){return a+c;},0)/use.length);
+  if(n){n.textContent=avg;n.style.color=_pingColor(avg);}
+  if(q){q.textContent=avg<80?'✅ Excellent':avg<150?'🟡 Bon':avg<250?'🟠 Moyen':'🔴 Élevé';q.style.color=_pingColor(avg);}
+  if(btn){btn.disabled=false;btn.textContent='🔄 Refaire le test';}_pinging=false;
+}
+function pingCardHtml(){
+  return '<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:20px 0 8px">🎮 TESTER MON PING</div>'
+    +'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Latence actuelle</div>'
+    +'<div style="display:flex;align-items:baseline;justify-content:center;gap:4px"><span id="ping-num" style="font-size:42px;font-weight:900;color:var(--text3);line-height:1">—</span><span style="font-size:16px;color:var(--text3);font-weight:700">ms</span></div>'
+    +'<div id="ping-quality" style="font-size:13px;font-weight:800;margin-top:3px;min-height:18px;color:var(--text2)"></div>'
+    +'<div id="ping-bars" style="display:flex;align-items:flex-end;justify-content:center;gap:5px;height:66px;margin:14px 0"></div>'
+    +'<button id="ping-btn" onclick="startPingTest()" style="width:100%;padding:13px;border:none;border-radius:12px;font-weight:700;font-size:14px;color:#fff;background:linear-gradient(135deg,#00b0ff,#7c3aed);cursor:pointer">📶 Tester le ping</button>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:8px">Teste ta latence. Active le VPN puis refais le test pour comparer. 🎯</div></div>';
+}
+function renderVpnScreen(){
+  var el=document.getElementById('vpn-body');if(!el)return;
+  var until=vpnActiveMs();
+  if(until){
+    el.innerHTML=
+      '<div style="background:linear-gradient(135deg,rgba(0,200,83,.16),rgba(0,176,255,.12));border:1px solid #00c853;border-radius:16px;padding:18px;margin-bottom:14px;text-align:center">'
+      +'<div style="font-size:36px">🛡️</div>'
+      +'<div style="font-weight:800;font-size:17px;color:#00c853;margin-top:4px">VPN actif</div>'
+      +'<div style="font-size:13px;color:var(--text2);margin-top:4px">Expire dans <b id="vpn-count">'+fmtVpnDur(until-Date.now())+'</b></div></div>'
+      +(vpnSub.conf?'<button onclick="downloadVpnConf()" style="width:100%;padding:15px;border:none;border-radius:14px;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(135deg,#00b0ff,#7c3aed);cursor:pointer;margin-bottom:8px">🔌 Activer / Connecter le VPN</button><div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:6px">Télécharge le config puis active l\'interrupteur dans WireGuard.</div>':'<div style="text-align:center;color:var(--text3);font-size:12px;margin-bottom:10px">Le config VPN sera bientôt disponible.</div>')
+      +pingCardHtml();
+  }else{
+    var plans=vpnPlans().filter(function(p){return p.price>0;});
+    var trialBtn=(vpnSub.trial && !(userData&&userData.vpnTrialUsed))
+      ?'<button onclick="startVpnTrial()" style="width:100%;padding:13px;border:none;border-radius:14px;font-weight:800;font-size:14px;color:#052;background:linear-gradient(135deg,#00e676,#00b0ff);cursor:pointer;margin-bottom:14px">🎁 Essai gratuit 5 heures</button>':'';
+    var cards=plans.map(function(p){
+      return '<div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">'
+        +'<span style="font-size:26px">'+p.ic+'</span>'
+        +'<div style="flex:1"><div style="font-weight:800;font-size:15px">'+p.lb+'</div><div style="font-size:13px;color:var(--gold);font-weight:700">'+fmtMoney(p.price)+'</div></div>'
+        +'<button onclick="buyVpnPlan(\''+p.key+'\')" style="padding:11px 16px;border:none;border-radius:12px;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(135deg,#00b0ff,#7c3aed);cursor:pointer">Acheter</button></div>';
+    }).join('')||'<div style="color:var(--text3);font-size:13px;text-align:center;padding:12px">Aucun forfait disponible pour le moment.</div>';
+    el.innerHTML=
+      '<div style="background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(0,176,255,.12));border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px">'
+      +'<div style="font-weight:800;font-size:16px;margin-bottom:3px">🛡️ Abonnement VPN MgLoot</div>'
+      +'<div style="font-size:12.5px;color:var(--text2);line-height:1.5">Payez avec votre portefeuille, activez le VPN et stabilisez votre ping en jeu. 🎮</div></div>'
+      +trialBtn
+      +'<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">💳 CHOISIR UN FORFAIT</div>'
+      +cards
+      +'<div style="font-size:11px;color:var(--text3);margin:8px 0 0;line-height:1.5">💡 Rechargez votre portefeuille (Orange Money, Wave, carte…) puis payez le VPN avec.</div>'
+      +pingCardHtml();
+  }
+  updateVpnBadge();
+}
+async function buyVpnPlan(key){
+  if(!currentUser){openAuthModal();return;}
+  var p=vpnPlans().find(function(x){return x.key===key;});if(!p||p.price<=0)return;
+  var bal=+((userData&&userData.walletBalance)||0);
+  if(bal<p.price){showToast('❌ Solde insuffisant. Rechargez votre portefeuille.');openScreen('wallet');return;}
+  if(!confirm('Acheter le VPN '+p.lb+' pour '+fmtMoney(p.price)+' ?\nDébité de votre portefeuille.'))return;
+  try{
+    var base=vpnActiveMs()||Date.now();var newUntil=base+p.dur;
+    await db.collection('users').doc(currentUser.uid).set({walletBalance:firebase.firestore.FieldValue.increment(-p.price),vpnUntil:firebase.firestore.Timestamp.fromMillis(newUntil)},{merge:true});
+    if(userData){userData.walletBalance=bal-p.price;userData.vpnUntil=firebase.firestore.Timestamp.fromMillis(newUntil);}
+    showToast('✅ VPN '+p.lb+' activé !');renderVpnScreen();
+  }catch(e){showToast('❌ '+e.message);}
+}
+async function startVpnTrial(){
+  if(!currentUser){openAuthModal();return;}
+  if(!vpnSub.trial){showToast('Essai indisponible');return;}
+  if(userData&&userData.vpnTrialUsed){showToast('Essai gratuit déjà utilisé');return;}
+  try{
+    var newUntil=Date.now()+5*3600*1000;
+    await db.collection('users').doc(currentUser.uid).set({vpnUntil:firebase.firestore.Timestamp.fromMillis(newUntil),vpnTrialUsed:true},{merge:true});
+    if(userData){userData.vpnUntil=firebase.firestore.Timestamp.fromMillis(newUntil);userData.vpnTrialUsed=true;}
+    showToast('🎁 Essai VPN 5h activé !');renderVpnScreen();
+  }catch(e){showToast('❌ '+e.message);}
+}
+function downloadVpnConf(){
+  var conf=vpnSub.conf||'';
+  if(!conf){showToast('Config VPN indisponible');return;}
+  try{
+    var blob=new Blob([conf],{type:'application/octet-stream'});var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='MgLoot-VPN.conf';document.body.appendChild(a);a.click();
+    setTimeout(function(){try{document.body.removeChild(a);}catch(e){}URL.revokeObjectURL(url);},150);
+    showToast('📥 Config téléchargée — importez-la dans WireGuard puis activez l\'interrupteur');
+  }catch(e){showToast('❌ Téléchargement impossible');}
+}
+// 🛡️ Badge « VPN actif » en haut de l'app
+function updateVpnBadge(){
+  var ex=document.getElementById('vpn-active-badge');
+  if(vpnActiveMs()){
+    if(!ex){
+      ex=document.createElement('div');ex.id='vpn-active-badge';ex.onclick=function(){openScreen('vpn');};
+      ex.style.cssText='position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:8000;background:linear-gradient(135deg,#00c853,#00b0ff);color:#fff;font-weight:800;font-size:10.5px;padding:3px 11px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;letter-spacing:.3px';
+      ex.textContent='🛡️ VPN actif';document.body.appendChild(ex);
+    }
+  }else if(ex){ex.remove();}
+}
 function loadVpnFiles(){
   const grid=document.getElementById('vpn-grid');if(!grid)return;
   if(!_vpnLoaded){
