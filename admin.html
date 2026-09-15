@@ -1283,27 +1283,6 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
   </div>
 
   <div class="panel">
-    <div class="panel-top"><span class="panel-title">🛡️ Abonnement VPN</span></div>
-    <div style="padding:16px">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Définissez les prix des abonnements + le fichier <b>.conf</b> livré au client après paiement (le client paie avec son portefeuille).</p>
-      <div class="form-grp"><label>Devise des prix</label>
-        <select class="inp inp-sel" id="vsub-cur"><option value="xof">XOF</option><option value="eur">€ EUR</option><option value="usd">$ USD</option></select></div>
-      <div class="f-row" style="gap:8px">
-        <div class="form-grp" style="flex:1"><label>1 Semaine</label><input class="inp" id="vsub-week" type="number" min="0" placeholder="0"/></div>
-        <div class="form-grp" style="flex:1"><label>1 Mois</label><input class="inp" id="vsub-month" type="number" min="0" placeholder="0"/></div>
-        <div class="form-grp" style="flex:1"><label>1 An</label><input class="inp" id="vsub-year" type="number" min="0" placeholder="0"/></div>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0"><input type="checkbox" id="vsub-trial"/> 🎁 Activer l'essai gratuit 5 heures</label>
-      <div class="form-grp"><label>Config VPN (.conf) — collez le texte OU choisissez un fichier</label>
-        <textarea class="inp" id="vsub-conf" rows="6" placeholder="[Interface]&#10;PrivateKey = ...&#10;Address = ...&#10;[Peer]&#10;..." style="font-family:monospace;font-size:11px;line-height:1.5"></textarea>
-        <input type="file" id="vsub-file" accept=".conf,.txt,text/plain,application/octet-stream" onchange="onVpnSubFilePick(event)" style="font-size:12px;margin-top:6px"/>
-        <div id="vsub-file-status" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
-      </div>
-      <button class="save-btn" onclick="saveVpnSub()" style="margin-top:8px">💾 Enregistrer l'abonnement VPN</button>
-    </div>
-  </div>
-
-  <div class="panel">
     <div class="panel-top"><span class="panel-title">🔐 Boutique VPN (WireGuard)</span>
       <button class="btn-add" onclick="resetVpnForm()" style="padding:6px 10px">+ Nouveau</button></div>
     <div style="padding:16px">
@@ -1458,20 +1437,17 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
       <button class="save-btn" onclick="saveCinetPayKeys()">💾 Enregistrer CinetPay</button>
     </div>
     <div style="padding:0 16px 16px;border-top:1px solid var(--border);margin-top:6px">
-      <p style="font-size:12px;color:var(--text2);margin:12px 0 8px"><b>🟢 PayTech (Orange Money · Wave · Free · carte)</b> — cochez <b>PayTech</b> dans la liste ci-dessus pour l'activer chez les clients.</p>
+      <p style="font-size:12px;color:var(--text2);margin:12px 0 8px"><b>🟢 MoneyFusion (Orange Money · Wave · MTN · Moov · carte)</b> — cochez <b>MoneyFusion</b> dans la liste ci-dessus pour l'activer chez les clients.</p>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:12px;color:var(--text2);line-height:1.7">
-        🔒 Les clés PayTech sont <b>secrètes</b> : elles se mettent dans <b>Vercel → Settings → Environment Variables</b>, pas ici. Ajoutez :<br>
-        • <code>PAYTECH_API_KEY</code> = votre Clé API<br>
-        • <code>PAYTECH_API_SECRET</code> = votre Clé secrète<br>
-        • <code>PAYTECH_ENV</code> = <code>prod</code> (ou <code>test</code>)<br>
+        🔒 Votre URL d'API MoneyFusion est <b>secrète</b> : elle se met dans <b>Vercel → Settings → Environment Variables</b>, pas ici. Ajoutez :<br>
+        • <code>MONEYFUSION_API_URL</code> = votre URL d'API perso <code>https://pay.moneyfusion.net/MGLOOT/919992e65a2b7491/pay/</code> (déjà pré-remplie par défaut dans le code)<br>
         • <code>PUBLIC_BASE_URL</code> = <code>https://mgloot.com</code><br>
         <br>
-        Dans le tableau de bord <b>PayTech</b>, mettez :<br>
-        • IPN : <code>https://mgloot.com/api/paytech-ipn</code><br>
-        • Succès : <code>https://mgloot.com/payment/success</code><br>
-        • Annulation : <code>https://mgloot.com/payment/cancel</code><br>
+        Dans le tableau de bord <b>MoneyFusion</b> (ou laissé par défaut), le retour/notification pointe vers votre site :<br>
+        • Webhook : <code>https://mgloot.com/api/moneyfusion-webhook</code><br>
+        • Retour (return_url) : <code>https://mgloot.com/payment/success</code><br>
         <br>
-        Après paiement, le portefeuille du client est <b>crédité automatiquement</b> (côté serveur, sécurisé).
+        Après paiement, le statut est <b>revérifié côté serveur</b> auprès de MoneyFusion, puis le portefeuille du client est <b>crédité automatiquement</b> (anti-doublon, sécurisé).
       </div>
     </div>
     <div style="padding:0 16px 16px">
@@ -2881,7 +2857,7 @@ function goTab(id){
   if(id==='orders')loadOrders();
   if(id==='payments')loadPayments();
   if(id==='announce'){loadAnnounce();loadPromos();loadHotVideosAdmin();loadInviteConfig();}
-  if(id==='rewards'){try{checkCronHealth();}catch(e){}try{loadPointsShopToggle();}catch(e){}try{loadArenaToggle();}catch(e){}try{loadVpnSub();}catch(e){}}
+  if(id==='rewards'){try{checkCronHealth();}catch(e){}try{loadPointsShopToggle();}catch(e){}try{loadArenaToggle();}catch(e){}}
   if(id==='logo'){ensureImgbbKey().then(renderImgbbKeyBox);}
   if(id==='accounts'){loadAccounts();aoFillGames();aoRenderThumbs();loadImgbbKey();loadCloudinaryCfg();}
   if(id==='reports')loadReports();
@@ -4764,45 +4740,6 @@ function renderVpnAdmin(){
       '<button style="'+bs+';color:#ff5a5a" onclick="deleteVpn(\''+v.id+'\')">🗑</button></div>';
   }).join('');
 }
-// ── 🛡️ Abonnement VPN (prix + essai + config .conf) ──
-var _VSUB_RATES={eur:1,usd:1.16,xof:655.957};
-function onVpnSubFilePick(e){
-  var f=(e.target.files||[])[0];if(!f)return;
-  var st=document.getElementById('vsub-file-status');
-  var r=new FileReader();
-  r.onload=function(){document.getElementById('vsub-conf').value=String(r.result||'');if(st)st.textContent='✅ Fichier chargé ('+f.name+')';};
-  r.onerror=function(){if(st)st.textContent='❌ Lecture impossible';};
-  r.readAsText(f);
-}
-async function loadVpnSub(){
-  try{
-    var d=await db.collection('config').doc('vpnsub').get();var v=(d.exists&&d.data())||{};
-    var cur=v.priceCur||'xof';var rate=_VSUB_RATES[cur]||1;
-    var toCur=function(eur){return eur?Math.round(eur*rate*100)/100:'';};
-    document.getElementById('vsub-cur').value=cur;
-    document.getElementById('vsub-week').value=toCur(+v.priceWeek||0)||'';
-    document.getElementById('vsub-month').value=toCur(+v.priceMonth||0)||'';
-    document.getElementById('vsub-year').value=toCur(+v.priceYear||0)||'';
-    document.getElementById('vsub-trial').checked=!!v.trial;
-    document.getElementById('vsub-conf').value=v.conf||'';
-  }catch(e){}
-}
-async function saveVpnSub(){
-  try{
-    var cur=document.getElementById('vsub-cur').value||'xof';var rate=_VSUB_RATES[cur]||1;
-    var toEur=function(id){var n=parseFloat(document.getElementById(id).value);return (isNaN(n)||n<=0)?0:Math.round((n/rate)*10000)/10000;};
-    await db.collection('config').doc('vpnsub').set({
-      priceCur:cur,
-      priceWeek:toEur('vsub-week'),
-      priceMonth:toEur('vsub-month'),
-      priceYear:toEur('vsub-year'),
-      trial:document.getElementById('vsub-trial').checked,
-      conf:(document.getElementById('vsub-conf').value||'').trim(),
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-    toast('✅ Abonnement VPN enregistré');
-  }catch(e){toast('❌ '+(e.message||'échec'),true);}
-}
 function resetVpnForm(){
   ['vpn-edit-id','vpn-name','vpn-desc','vpn-price','vpn-points'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   var f=document.getElementById('vpn-file');if(f)f.value='';
@@ -5205,7 +5142,7 @@ async function toggleScreenAd(id,on){try{await db.collection('screenAds').doc(id
 async function delScreenAd(id){if(!confirm('Supprimer cette publicité ?'))return;try{await db.collection('screenAds').doc(id).delete();toast('✓ Supprimée');}catch(e){toast('❌ '+e.message,true);}}
 
 /* ── Interrupteurs des méthodes de paiement ── */
-const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['paytech','PayTech (Orange Money · Wave · Free · carte)'],['orange','Orange Money (manuel)']];
+const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['moneyfusion','MoneyFusion (Orange Money · Wave · MTN · Moov · carte)'],['orange','Orange Money (manuel)']];
 async function loadPmToggles(){
   try{
     var d=await db.collection('config').doc('shop').get();
@@ -5213,7 +5150,7 @@ async function loadPmToggles(){
     var el=document.getElementById('pm-toggles');if(!el)return;
     el.innerHTML='<p style="font-size:12px;color:var(--text2);margin-bottom:10px">Décochez pour masquer une méthode chez les clients.</p>'+
       PM_LIST.map(function(p){
-        var on=(p[0]==='paytech')?(pm.paytech===true):(pm[p[0]]!==false);
+        var on=(p[0]==='moneyfusion')?(pm.moneyfusion===true||pm.paytech===true):(pm[p[0]]!==false);
         return '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;font-size:13px;border-bottom:1px solid var(--border)"><input type="checkbox" '+(on?'checked':'')+' onchange="setPmToggle(\''+p[0]+'\',this.checked)"/> '+p[1]+'</label>';
       }).join('');
     // 🔑 Pré-remplit les clés CinetPay existantes
