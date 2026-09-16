@@ -5140,7 +5140,7 @@ async function toggleScreenAd(id,on){try{await db.collection('screenAds').doc(id
 async function delScreenAd(id){if(!confirm('Supprimer cette publicité ?'))return;try{await db.collection('screenAds').doc(id).delete();toast('✓ Supprimée');}catch(e){toast('❌ '+e.message,true);}}
 
 /* ── Interrupteurs des méthodes de paiement ── */
-const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['moneyfusion','💠 MoneyFusion (Orange Money · MTN · Wave · Moov · carte)'],['orange','Orange Money (manuel)']];
+const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['moneyfusion','💠 MoneyFusion — Orange Money, MTN, Wave, Moov, Carte'],['orange','Orange Money (manuel)']];
 async function loadPmToggles(){
   try{
     var d=await db.collection('config').doc('shop').get();
