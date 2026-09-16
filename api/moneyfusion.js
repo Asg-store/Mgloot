@@ -83,20 +83,28 @@ module.exports = async (req, res) => {
         numeroSend: (p.phone || '').toString(),
         nomclient: (p.name || email || 'Client MgLoot').toString(),
         personal_Info: [{ userId: uid, orderId: orderId || '', ref: ref }],
-        return_url: BASE + '/?mfdone=1',
+        return_url: BASE + '/success',
         webhook_url: BASE + '/api/moneyfusion'
       };
-      const r = await fetch(MF_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await r.json().catch(() => ({}));
+      let data = {};
+      try {
+        const r = await fetch(MF_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        data = await r.json().catch(() => ({}));
+        console.log('[MoneyFusion] status=' + r.status + ' resp=' + JSON.stringify(data));
+      } catch (err) {
+        console.log('[MoneyFusion] fetch error: ' + err.message);
+        return res.status(200).json({ error: 'Connexion MoneyFusion impossible: ' + err.message });
+      }
       if (data && (data.statut === true || data.statut === 'true' || data.statut === 1) && data.url) {
         await db.collection('moneyfusionPayments').doc(ref).set({ token: data.token || '' }, { merge: true });
         return res.status(200).json({ ok: true, url: data.url, token: data.token || '', ref });
       }
-      return res.status(200).json({ error: (data && data.message) || 'MoneyFusion a refusé la demande.' });
+      // On renvoie le message EXACT de MoneyFusion pour diagnostiquer (IP, URL, etc.)
+      return res.status(200).json({ error: (data && (data.message || data.msg)) || 'MoneyFusion a refusé la demande.', mf: data });
     }
 
     // ─────────────── 2) WEBHOOK MoneyFusion (paiement terminé) ───────────────
