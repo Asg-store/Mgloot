@@ -1437,17 +1437,15 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
       <button class="save-btn" onclick="saveCinetPayKeys()">💾 Enregistrer CinetPay</button>
     </div>
     <div style="padding:0 16px 16px;border-top:1px solid var(--border);margin-top:6px">
-      <p style="font-size:12px;color:var(--text2);margin:12px 0 8px"><b>🟢 MoneyFusion (Orange Money · Wave · MTN · Moov · carte)</b> — cochez <b>MoneyFusion</b> dans la liste ci-dessus pour l'activer chez les clients.</p>
+      <p style="font-size:12px;color:var(--text2);margin:12px 0 8px"><b>💠 MoneyFusion (Orange Money · MTN · Wave · Moov · carte)</b> — cochez <b>MoneyFusion</b> dans la liste ci-dessus pour l'activer chez les clients.</p>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:12px;color:var(--text2);line-height:1.7">
-        🔒 Votre URL d'API MoneyFusion est <b>secrète</b> : elle se met dans <b>Vercel → Settings → Environment Variables</b>, pas ici. Ajoutez :<br>
-        • <code>MONEYFUSION_API_URL</code> = votre URL d'API perso <code>https://pay.moneyfusion.net/MGLOOT/919992e65a2b7491/pay/</code> (déjà pré-remplie par défaut dans le code)<br>
+        🔧 Configuration dans <b>Vercel → Settings → Environment Variables</b> :<br>
+        • <code>MONEYFUSION_API_URL</code> = votre lien d'API MoneyFusion<br>
         • <code>PUBLIC_BASE_URL</code> = <code>https://mgloot.com</code><br>
         <br>
-        Dans le tableau de bord <b>MoneyFusion</b> (ou laissé par défaut), le retour/notification pointe vers votre site :<br>
-        • Webhook : <code>https://mgloot.com/api/moneyfusion-webhook</code><br>
-        • Retour (return_url) : <code>https://mgloot.com/payment/success</code><br>
+        Le <b>webhook</b> est envoyé automatiquement à <code>https://mgloot.com/api/moneyfusion</code> dans chaque transaction.<br>
         <br>
-        Après paiement, le statut est <b>revérifié côté serveur</b> auprès de MoneyFusion, puis le portefeuille du client est <b>crédité automatiquement</b> (anti-doublon, sécurisé).
+        Après paiement, le portefeuille / la commande du client est <b>crédité(e) automatiquement</b> (côté serveur, sécurisé).
       </div>
     </div>
     <div style="padding:0 16px 16px">
@@ -5142,7 +5140,7 @@ async function toggleScreenAd(id,on){try{await db.collection('screenAds').doc(id
 async function delScreenAd(id){if(!confirm('Supprimer cette publicité ?'))return;try{await db.collection('screenAds').doc(id).delete();toast('✓ Supprimée');}catch(e){toast('❌ '+e.message,true);}}
 
 /* ── Interrupteurs des méthodes de paiement ── */
-const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['moneyfusion','MoneyFusion (Orange Money · Wave · MTN · Moov · carte)'],['orange','Orange Money (manuel)']];
+const PM_LIST=[['paypal','PayPal'],['adyen','Carte bancaire'],['gpay','Google Pay'],['applepay','Apple Pay'],['fedapay','Mobile Money (FedaPay)'],['cinetpay','Orange Money Mali (CinetPay)'],['moneyfusion','💠 MoneyFusion (Orange Money · MTN · Wave · Moov · carte)'],['orange','Orange Money (manuel)']];
 async function loadPmToggles(){
   try{
     var d=await db.collection('config').doc('shop').get();
@@ -5150,7 +5148,7 @@ async function loadPmToggles(){
     var el=document.getElementById('pm-toggles');if(!el)return;
     el.innerHTML='<p style="font-size:12px;color:var(--text2);margin-bottom:10px">Décochez pour masquer une méthode chez les clients.</p>'+
       PM_LIST.map(function(p){
-        var on=(p[0]==='moneyfusion')?(pm.moneyfusion===true||pm.paytech===true):(pm[p[0]]!==false);
+        var on=(p[0]==='moneyfusion')?(pm[p[0]]===true):(pm[p[0]]!==false);
         return '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;font-size:13px;border-bottom:1px solid var(--border)"><input type="checkbox" '+(on?'checked':'')+' onchange="setPmToggle(\''+p[0]+'\',this.checked)"/> '+p[1]+'</label>';
       }).join('');
     // 🔑 Pré-remplit les clés CinetPay existantes
