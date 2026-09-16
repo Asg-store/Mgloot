@@ -68,6 +68,7 @@ module.exports = async (req, res) => {
       const purpose = (p.purpose || 'wallet').toString();
       const orderId = (p.orderId || '').toString();
       if (amountEur < 0.5) return res.status(400).json({ error: 'Montant trop faible.' });
+      if (!String(p.phone || '').trim()) return res.status(400).json({ error: 'Numéro de téléphone requis pour MoneyFusion.' });
       if (purpose === 'order' && !orderId) return res.status(400).json({ error: 'Commande introuvable.' });
       const xof = Math.max(100, Math.round(amountEur * EUR_XOF));
 
@@ -183,4 +184,3 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 };
-        
