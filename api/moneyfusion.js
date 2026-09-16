@@ -79,7 +79,7 @@ module.exports = async (req, res) => {
 
       const payload = {
         totalPrice: xof,
-        article: [{ name: purpose === 'order' ? 'Commande MgLoot' : 'Recharge Portefeuille MgLoot', price: xof, quantity: 1 }],
+        article: [{ nom: purpose === 'order' ? 'Commande MgLoot' : 'Recharge Portefeuille MgLoot', montant: xof }],
         numeroSend: (p.phone || '').toString(),
         nomclient: (p.name || email || 'Client MgLoot').toString(),
         personal_Info: [{ userId: uid, orderId: orderId || '', ref: ref }],
