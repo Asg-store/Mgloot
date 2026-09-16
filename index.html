@@ -4153,8 +4153,19 @@ function rechargeNext(){
 }
 var _rcExactXof=null; // montant XOF exact tapé par l'utilisateur (ou null)
 /* ─── MoneyFusion : recharge par redirection (Orange Money, MTN, Wave, Moov, carte…) ─── */
+// 📱 Récupère/demande le numéro de téléphone (obligatoire pour MoneyFusion) et le mémorise
+async function _mfGetPhone(){
+  var phone=((userData&&userData.phone)||'').toString().trim();
+  if(!phone){
+    phone=(prompt('📱 Entrez votre numéro de téléphone (Orange Money / Wave / MTN / Moov) pour le paiement :')||'').trim();
+    if(phone && currentUser){ try{ await db.collection('users').doc(currentUser.uid).set({phone:phone},{merge:true}); if(userData)userData.phone=phone; }catch(e){} }
+  }
+  return phone;
+}
 async function startRechargeMoneyFusion(amtEuro){
   if(!currentUser){openAuthModal();return;}
+  var phone=await _mfGetPhone();
+  if(!phone){rechargeErr('📱 Numéro de téléphone requis pour MoneyFusion.');return;}
   const btn=document.getElementById('recharge-next-btn');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> Redirection vers MoneyFusion…';}
   try{
@@ -4162,7 +4173,7 @@ async function startRechargeMoneyFusion(amtEuro){
     const r=await fetch('/api/moneyfusion',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({action:'create',amountEur:amtEuro,purpose:'wallet',name:(currentUser.displayName||''),phone:((userData&&userData.phone)||'')})
+      body:JSON.stringify({action:'create',amountEur:amtEuro,purpose:'wallet',name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
     if(d&&d.url){window.location.href=d.url;return;}
@@ -4171,6 +4182,42 @@ async function startRechargeMoneyFusion(amtEuro){
   }catch(e){
     rechargeErr('❌ '+(e.message||'Erreur réseau'));
     if(btn){btn.disabled=false;btn.textContent='Continuer →';}
+  }
+}
+// 💠 MoneyFusion pour le panier (recréé)
+async function payCartMoneyFusion(){
+  const _a=getCartAccount();if(!_a)return;const playerId=_a.playerId,_accData=_a.account||null;
+  if(!cartCheckoutData){showToast('🛒 Panier vide');return;}
+  var phone=await _mfGetPhone();
+  var btn=document.getElementById('cart-pay-btn');
+  if(!phone){showToast('📱 Numéro de téléphone requis');if(btn){btn.disabled=false;btn.innerHTML='Payer →';}return;}
+  cartCheckoutData.playerId=playerId;cartCheckoutData.playerName=_a.playerName||"";
+  const total=cartCheckoutData.total||0;if(total<=0)return;
+  if(btn){if(btn.disabled&&btn.querySelector('.btn-spinner')){}btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> Redirection vers MoneyFusion…';}
+  try{
+    const oref=db.collection('orders').doc();
+    await oref.set({
+      items:cartCheckoutData.items,subtotal:cartCheckoutData.subtotal,
+      deliveryFee:cartCheckoutData.deliveryFee||0,discount:cartCheckoutData.discount||0,
+      promoCode:cartCheckoutData.promoCode||'',total:total,
+      playerId:playerId,playerName:(cartCheckoutData.playerName||""),account:_accData,userId:currentUser.uid,
+      userName:currentUser.displayName||(currentUser.email||'').split('@')[0],
+      email:currentUser.email||'',paymentMethod:'MoneyFusion',status:'pending',
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const token=await currentUser.getIdToken();
+    const r=await fetch('/api/moneyfusion',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({action:'create',amountEur:total,purpose:'order',orderId:oref.id,name:(currentUser.displayName||''),phone:phone})
+    });
+    const d=await r.json().catch(function(){return {};});
+    if(d&&d.url){window.location.href=d.url;return;}
+    showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
+    if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
+  }catch(e){
+    showToast('❌ '+(e.message||'Erreur'));
+    if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
   }
 }
 /* ─── Orange Money manuel : montant XOF + numéro + n° transaction + preuve ─── */
