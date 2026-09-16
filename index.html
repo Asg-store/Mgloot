@@ -7265,6 +7265,7 @@ async function spinWheel(){
     if(r&&r.length>5)localStorage.setItem('asg-ref',r);
     // 💠 Retour de paiement MoneyFusion : message (le crédit/livraison se fait via le webhook serveur)
     var pt=p.get('mfdone');
+    if(!pt && location.pathname.indexOf('/success')>=0)pt='1';
     if(pt){
       setTimeout(function(){
         if(typeof showToast==='function')showToast('✅ Paiement reçu ! Votre commande / recharge sera confirmée dans un instant.');

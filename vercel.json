@@ -9,6 +9,7 @@
     "api/flashtopup-deliver.js": { "maxDuration": 60 }
   },
   "rewrites": [
+    { "source": "/success", "destination": "/index.html" },
     { "source": "/payment/success", "destination": "/index.html" },
     { "source": "/payment/cancel", "destination": "/index.html" }
   ]
