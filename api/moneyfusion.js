@@ -31,9 +31,20 @@ const MF_URL = (process.env.MONEYFUSION_API_URL || 'https://pay.moneyfusion.net/
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // 🔎 Outil : afficher l'IP de SORTIE réelle du serveur (pour l'allowlist MoneyFusion)
+  //    Ouvrez https://mgloot.com/api/moneyfusion?ip=1 plusieurs fois.
+  if (req.method === 'GET' && (req.query && (req.query.ip === '1' || req.query.ip === 'true'))) {
+    try {
+      const r = await fetch('https://api.ipify.org?format=json');
+      const j = await r.json().catch(() => ({}));
+      return res.status(200).json({ outboundIP: j.ip || '?', note: "Rechargez plusieurs fois : Vercel peut renvoyer plusieurs IP différentes." });
+    } catch (e) { return res.status(200).json({ error: e.message }); }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
