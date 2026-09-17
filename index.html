@@ -4176,7 +4176,7 @@ async function startRechargeMoneyFusion(amtEuro){
       body:JSON.stringify({action:'create',amountEur:amtEuro,purpose:'wallet',name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','wallet');}catch(e){}window.location.href=d.url;return;}
     rechargeErr((d&&d.error)||'MoneyFusion indisponible pour le moment.');
     if(btn){btn.disabled=false;btn.textContent='Continuer →';}
   }catch(e){
@@ -4212,7 +4212,7 @@ async function payCartMoneyFusion(){
       body:JSON.stringify({action:'create',amountEur:total,purpose:'order',orderId:oref.id,name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','order');}catch(e){}window.location.href=d.url;return;}
     showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
     if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
   }catch(e){
@@ -7310,16 +7310,21 @@ async function spinWheel(){
     var p=new URLSearchParams(location.search);
     var r=p.get('ref');
     if(r&&r.length>5)localStorage.setItem('asg-ref',r);
-    // 💠 Retour de paiement MoneyFusion : message (le crédit/livraison se fait via le webhook serveur)
+    // 💠 Retour de paiement MoneyFusion : message + ouverture de la bonne section
     var pt=p.get('mfdone');
     if(!pt && location.pathname.indexOf('/success')>=0)pt='1';
     if(pt){
+      try{history.replaceState(null,'','/');}catch(e){}   // nettoie l'URL
+      var _mfTarget='';try{_mfTarget=localStorage.getItem('mf-return')||'';localStorage.removeItem('mf-return');}catch(e){}
       setTimeout(function(){
-        if(typeof showToast==='function')showToast('✅ Paiement reçu ! Votre commande / recharge sera confirmée dans un instant.');
+        if(typeof showToast==='function')showToast('✅ Paiement reçu ! Confirmation dans un instant…');
         try{if(typeof cart!=='undefined'){cart=[];if(typeof saveCart==='function')saveCart();if(typeof renderCart==='function')renderCart();}}catch(e){}
-      },1200);
-      // Nettoie l'URL (revient à l'accueil)
-      try{history.replaceState(null,'','/');}catch(e){}
+        // On ouvre directement la section concernée pour que le client voie le résultat
+        try{
+          if(_mfTarget==='wallet'){ (typeof openScreen==='function')?openScreen('wallet'):0; }
+          else if(_mfTarget==='order'){ (typeof openPayHistory==='function')?openPayHistory():((typeof openScreen==='function')?openScreen('profile'):0); }
+        }catch(e){}
+      },1400);
     }
   }catch(e){}
 })();
