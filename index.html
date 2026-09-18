@@ -4038,7 +4038,11 @@ function refreshProfileUI(){
   var phone=(userData&&userData.phone)?String(userData.phone).trim():'';
   if($('pf-name'))$('pf-name').textContent=currentUser.displayName||'Utilisateur';
   var _pl=$('pf-level');
-  if(_pl){var vv=currentVipLevel();var lv=vv.lv;_pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};_pl.innerHTML='<span style="background:'+lv.color+'22;color:'+lv.color+';border:1px solid '+lv.color+'55;border-radius:99px;padding:3px 12px;font-weight:800">'+lv.icon+' VIP'+(vv.idx+1)+' '+lv.name+' ›</span>';}
+  if(_pl){var vv=currentVipLevel();var lv=vv.lv;var c=(['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0'][vv.idx]||lv.color);
+    _pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};
+    _pl.innerHTML='<span style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,'+c+'26,'+c+'0d);color:'+c+';border:1.5px solid '+c+';border-radius:99px;padding:5px 14px 5px 8px;font-weight:800;font-size:13px;box-shadow:0 2px 8px '+c+'33">'
+      +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>VIP'+(vv.idx+1)+' '+lv.name+' <span style="opacity:.7">›</span></span>';
+  }
   if($('pf-email'))$('pf-email').textContent=currentUser.email||'';
   if($('pf-phone'))$('pf-phone').textContent=phone?('📞 '+phone):'';
   if($('pf-name-desc'))$('pf-name-desc').textContent=currentUser.displayName||'—';
@@ -6128,12 +6132,29 @@ function closeScreen(name){
   if(!openScreens.length)_screenZ=700;   // remise à zéro quand tout est fermé
 }
 function goBack(){history.back();}
+function _closeGenericOverlay(){
+  // Ferme n'importe quelle modale/overlay ouvert (recharge, roue, invite, reset, PIN,
+  // résultat MoneyFusion, etc.) — le plus haut d'abord. Jamais les blocages/pubs.
+  var opened=[];
+  var mf=document.getElementById('mf-result-ov');if(mf)opened.push(mf);
+  var ids=['recharge-overlay','ptsbuy-overlay','wheel-overlay','invite-overlay','reset-overlay','delivery-overlay','vpn-deliver-overlay','pinset-overlay','pinlock-overlay'];
+  ids.forEach(function(id){var e=document.getElementById(id);if(e&&e.classList.contains('open'))opened.push(e);});
+  var extra=document.querySelectorAll('[id$="-overlay"].open,[id$="-modal"].open,[id$="-sheet"].open');
+  for(var j=0;j<extra.length;j++){var x=extra[j];if(['blocked-overlay','screen-ad-overlay','global-overlay','drawer-overlay'].indexOf(x.id)>=0)continue;if(opened.indexOf(x)<0)opened.push(x);}
+  if(!opened.length)return false;
+  var top=opened[0],tz=-1;
+  opened.forEach(function(e){var z=parseInt(getComputedStyle(e).zIndex)||0;if(z>=tz){tz=z;top=e;}});
+  try{if(top.id==='mf-result-ov')top.remove();else top.classList.remove('open');}catch(e){}
+  try{var go=document.getElementById('global-overlay');if(go)go.classList.remove('open');}catch(e){}
+  return true;
+}
 function closeTopOverlay(){
   var _ap=document.getElementById('accpay-overlay');
   if(_ap&&_ap.classList.contains('open')){closeAccountPay();return true;}
   var _ph=document.getElementById('phone-overlay');
   if(_ph&&_ph.classList.contains('open')){closePhoneSheet();return true;}
   if(document.getElementById('lightbox').classList.contains('open')){closeLightbox();return true;}
+  if(_closeGenericOverlay())return true;                              // recharge, roue, invite, reset, PIN, MoneyFusion…
   if(openScreens.length){closeScreen(openScreens[openScreens.length-1]);return true;}
   if(document.getElementById('auth-overlay').classList.contains('open')){closeAuthModal();return true;}
   if(cartDrawer.classList.contains('open')){closeCart();return true;}
@@ -6141,6 +6162,20 @@ function closeTopOverlay(){
   if(document.getElementById('pay-history-sheet').classList.contains('open')){closePayHistory();return true;}
   if(sidebar.classList.contains('open')){closeSidebar();return true;}
   if(currentGame&&currentGame!=='all'){backToCatalog();return true;}  // ⬅️ jeu ouvert → retour catalogue
+  // 🛡️ Filet de sécurité : ferme TOUTE couche visible oubliée (écran/overlay/sheet/modale)
+  //    avant d'autoriser la sortie de l'app — garantit un retour étape par étape partout.
+  try{
+    var _safe=document.querySelectorAll('.screen.open,[id$="-overlay"].open,[id$="-sheet"].open,[id$="-modal"].open,[id$="-drawer"].open');
+    var _skip=['blocked-overlay','screen-ad-overlay','global-overlay','drawer-overlay'];
+    var _top=null,_tz=-1;
+    for(var _i=0;_i<_safe.length;_i++){var _e=_safe[_i];if(_skip.indexOf(_e.id)>=0)continue;var _z=parseInt(getComputedStyle(_e).zIndex)||0;if(_z>=_tz){_tz=_z;_top=_e;}}
+    if(_top){
+      if(_top.classList.contains('screen')){_top.classList.remove('open');_top.style.zIndex='';var _nm=_top.id.replace('screen-','');openScreens=openScreens.filter(function(n){return n!==_nm;});if(!openScreens.length)_screenZ=700;}
+      else _top.classList.remove('open');
+      try{var _go=document.getElementById('global-overlay');if(_go)_go.classList.remove('open');}catch(e){}
+      return true;
+    }
+  }catch(e){}
   return false;
 }
 /* ═══════════ NAVIGATION RETOUR & SORTIE DE L'APPLICATION ═══════════
@@ -6159,9 +6194,9 @@ window.addEventListener('popstate',function(){
   _popClosing=false;
 });
 
-// armer le retour pour les overlays existants (un cran d'historique à l'ouverture)
-['openCart','openFilterSheet','openAuthModal','openPayHistory'].forEach(fn=>{
-  if(typeof window[fn]==='function'){const o=window[fn];window[fn]=function(){o.apply(this,arguments);armBack();};}
+// armer le retour pour les overlays/modales (un cran d'historique à l'ouverture)
+['openCart','openFilterSheet','openAuthModal','openPayHistory','openRecharge','openPtsBuy','openWheel','openInvite','forgotPassword','openPinLock','openPinSettings','openMpPay','openReport'].forEach(fn=>{
+  if(typeof window[fn]==='function'){const o=window[fn];window[fn]=function(){var r=o.apply(this,arguments);armBack();return r;};}
 });
 menuBtn.addEventListener('click',()=>{if(sidebar.classList.contains('open'))armBack();});
 
