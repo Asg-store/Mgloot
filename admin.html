@@ -1313,21 +1313,26 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
         <span class="hint" style="display:block;margin-top:4px">Pour le système VIP (VIP1→VIP4), choisissez <b>Argent dépensé</b> et mettez des seuils en € (ex : Argent 10, Or 50, Diamant 150).</span></div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥈 VIP2 Argent</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-silver-min" type="number" min="0" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-silver-disc" type="number" min="0" max="50" placeholder="3"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-silver-qty" type="number" min="0" placeholder="1"/></div></div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-silver-min" type="number" min="0" placeholder="1000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-silver-disc" type="number" min="0" max="50" placeholder="3"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-silver-qty" type="number" min="0" placeholder="1"/></div></div>
       </div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥇 VIP3 Or</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-gold-min" type="number" min="0" placeholder="50"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-gold-disc" type="number" min="0" max="50" placeholder="5"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-gold-qty" type="number" min="0" placeholder="2"/></div></div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-gold-min" type="number" min="0" placeholder="5000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-gold-disc" type="number" min="0" max="50" placeholder="5"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-gold-qty" type="number" min="0" placeholder="2"/></div></div>
       </div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">💎 VIP4 Diamant</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-diamond-min" type="number" min="0" placeholder="150"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-diamond-disc" type="number" min="0" max="50" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-diamond-qty" type="number" min="0" placeholder="3"/></div></div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-diamond-min" type="number" min="0" placeholder="15000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-diamond-disc" type="number" min="0" max="50" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-diamond-qty" type="number" min="0" placeholder="3"/></div></div>
       </div>
       <div class="form-grp"><label>🔁 Remise à zéro des coupons</label>
         <select class="inp inp-sel" id="loy-reset"><option value="never">Jamais</option><option value="monthly">Chaque mois</option><option value="quarterly">Tous les 3 mois</option><option value="yearly">Chaque année</option></select>
         <span class="hint" style="display:block;margin-top:4px">Les coupons ×N du client se rechargent selon cette période.</span></div>
-      <div class="form-grp"><label>⚡ EXP gagnés par € dépensé</label><input class="inp" id="loy-exprate" type="number" min="1" placeholder="100"/>
-        <span class="hint" style="display:block;margin-top:4px">Ex : 100 = le client gagne 100 EXP par € dépensé. Les seuils ci-dessous sont alors en € (VIP2 à 10 € = 1000 EXP affichés).</span></div>
+      <div class="form-grp"><label>⚡ Gain d'EXP par paiement</label>
+        <div class="f-row" style="gap:8px">
+          <div class="form-grp" style="flex:1"><label>Montant</label><input class="inp" id="loy-exp-amt" type="number" min="1" placeholder="500"/></div>
+          <div class="form-grp" style="flex:1"><label>Devise</label><select class="inp inp-sel" id="loy-exp-cur"><option value="xof">XOF</option><option value="eur">€</option><option value="usd">$</option></select></div>
+          <div class="form-grp" style="flex:1"><label>= EXP</label><input class="inp" id="loy-exp-gain" type="number" min="1" placeholder="20"/></div>
+        </div>
+        <span class="hint" style="display:block;margin-top:4px">Ex : 500 XOF dépensés = +20 EXP. Les <b>seuils EXP</b> ci-dessous déterminent le passage de niveau.</span></div>
       <button class="save-btn" onclick="saveLoyalty()">💾 Enregistrer la fidélité</button>
       <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">🎯 Mission « achats par semaine »</div>
@@ -4845,7 +4850,9 @@ async function loadLoyalty(){
     set('loy-gold-min',lv.goldMin);set('loy-gold-disc',lv.goldDisc);set('loy-gold-qty',lv.goldQty);
     set('loy-diamond-min',lv.diamondMin);set('loy-diamond-disc',lv.diamondDisc);set('loy-diamond-qty',lv.diamondQty);
     if(document.getElementById('loy-reset'))document.getElementById('loy-reset').value=c.loyaltyReset||'never';
-    if(document.getElementById('loy-exprate'))document.getElementById('loy-exprate').value=(c.vipExpPerEur!=null?c.vipExpPerEur:'');
+    if(document.getElementById('loy-exp-amt'))document.getElementById('loy-exp-amt').value=(c.vipExpAmt!=null?c.vipExpAmt:'');
+    if(document.getElementById('loy-exp-cur'))document.getElementById('loy-exp-cur').value=c.vipExpCur||'xof';
+    if(document.getElementById('loy-exp-gain'))document.getElementById('loy-exp-gain').value=(c.vipExpGain!=null?c.vipExpGain:'');
     if(document.getElementById('miss-goal'))document.getElementById('miss-goal').value=c.missionBuyGoal||'';
     if(document.getElementById('miss-reward'))document.getElementById('miss-reward').value=c.missionBuyReward||'';
     if(document.getElementById('sad-interval'))document.getElementById('sad-interval').value=(c.adIntervalHours!=null?c.adIntervalHours:'');
@@ -4862,12 +4869,16 @@ async function setBannerVisible(on){
 }
 async function saveLoyalty(){
   var g=function(id){return +document.getElementById(id).value||0;};
+  var _R={eur:1,usd:1.16,xof:655.957};
+  var amt=g('loy-exp-amt')||500, cur=(document.getElementById('loy-exp-cur')?document.getElementById('loy-exp-cur').value:'xof'), gain=g('loy-exp-gain')||20;
+  var amtEur=amt/(_R[cur]||1);                     // montant converti en €
+  var perEur=amtEur>0?(gain/amtEur):100;           // EXP par € = EXP / (montant en €)
   try{
     await db.collection('config').doc('shop').set({
       loyaltyEnabled:document.getElementById('loy-on').checked,
       loyaltyBasis:document.getElementById('loy-basis').value,
       loyaltyReset:document.getElementById('loy-reset')?document.getElementById('loy-reset').value:'never',
-      vipExpPerEur:(+document.getElementById('loy-exprate').value||100),
+      vipExpAmt:amt,vipExpCur:cur,vipExpGain:gain,vipExpPerEur:Math.round(perEur*100)/100,
       loyaltyLevels:{
         silverMin:g('loy-silver-min'),silverDisc:g('loy-silver-disc'),silverQty:g('loy-silver-qty'),
         goldMin:g('loy-gold-min'),goldDisc:g('loy-gold-disc'),goldQty:g('loy-gold-qty'),

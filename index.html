@@ -1248,6 +1248,9 @@ body.ios .pnotif .pn-ic{border-radius:11px}
     <div class="cat-item" onclick="openScreen('points');closeSidebar()">
       <span class="c-ico"><i class="pt-coin-bg" style="width:22px;height:22px"></i></span> Mes Points
     </div>
+    <div class="cat-item" onclick="openScreen('vip');closeSidebar()">
+      <span class="c-ico" style="font-size:18px">👑</span> Mon VIP
+    </div>
     <div class="cat-item" onclick="openWheel();closeSidebar()">
       <span class="c-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></span> Roue de la chance
     </div>
@@ -2574,6 +2577,7 @@ body.ios .pnotif .pn-ic{border-radius:11px}
         <input type="checkbox" id="cart-points-cb" style="width:20px;height:20px;flex-shrink:0;accent-color:var(--accent)" onclick="event.stopPropagation();toggleCartPoints(this.checked)"/>
         <span id="cart-points-label" style="font-size:13px;line-height:1.4">🎯 Utiliser mes points en réduction</span>
       </div>
+      <div id="cart-vip-coupons" style="display:none;margin:10px 0 4px"></div>
       <div style="font-weight:800;font-size:14px;margin:16px 0 8px">Méthode de paiement</div>
       <div class="rc-methods" id="cart-methods">
         <div class="rc-method" data-m="wallet" onclick="selectCartMethod('wallet')"><span class="rc-ic" style="font-size:21px">💰</span><div class="rc-tx"><div class="rc-n">Portefeuille MgLoot</div><div class="rc-d" id="cart-wallet-desc">Payer avec mon solde</div></div><span class="rc-chk"></span></div>
@@ -2877,7 +2881,7 @@ function loyaltyXP(){
   return (userData&&userData.points)||0;
 }
 function currentLevel(){var L=LEVELS_CFG();var xp=loyaltyXP(),lv=L[0];for(var i=0;i<L.length;i++){if(xp>=L[i].min)lv=L[i];}return lv;}
-function levelDiscountPct(){return loyaltyOn()?currentLevel().discount:0;}
+function levelDiscountPct(){return (_vipCoupon&&!_vipCoupon.used)?(+_vipCoupon.pct||0):0;} // coupon VIP choisi au paiement (plus de remise auto)
 function renderLoyalty(){
   var el=document.getElementById('loyalty-card');if(!el)return;
   if(!loyaltyOn()){el.style.display='none';return;}
@@ -2905,23 +2909,94 @@ function vipBenefitsFor(idx,lv){
     {ic:'🎁',name:'Cadeaux exclusifs',desc:'offres réservées VIP',on:idx>=3}
   ];
 }
+/* ═══════════ 🎟️ COUPONS VIP (réclamer + usage unique + reset) ═══════════ */
+var _vipCoupon=null; // coupon sélectionné au paiement
+function vipRate(){return +((shopConfig&&shopConfig.vipExpPerEur))||100;}
+function vipResetKey(){
+  var mode=(shopConfig&&shopConfig.loyaltyReset)||'never';var d=new Date();
+  if(mode==='monthly')return d.getFullYear()+'-'+(d.getMonth()+1);
+  if(mode==='quarterly')return d.getFullYear()+'-Q'+(Math.floor(d.getMonth()/3)+1);
+  if(mode==='yearly')return ''+d.getFullYear();
+  return 'all';
+}
+function currentVipLevel(){
+  var L=LEVELS_CFG();var RATE=vipRate();var exp=(+((userData&&userData.totalSpent)||0))*RATE;
+  var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(exp>=L[i].min){lv=L[i];idx=i;}}
+  return {lv:lv,idx:idx,exp:exp,L:L};
+}
+function vipCouponsData(){
+  var u=userData||{};var meta=u.vipCouponMeta||{};var key=vipResetKey();
+  var claimed=(meta.period===key)?(+meta.claimed||0):0;               // remis à 0 au nouveau cycle
+  var list=(u.vipCoupons||[]).filter(function(c){return c&&!c.used;}); // coupons non utilisés (n'expirent jamais)
+  return {key:key,claimed:claimed,list:list};
+}
+async function claimVipCoupon(){
+  if(!currentUser){openAuthModal();return;}
+  var lv=currentVipLevel().lv;var qty=+lv.qty||0,pct=+lv.discount||0;
+  if(qty<=0||pct<=0){showToast('Aucun coupon à votre niveau VIP');return;}
+  var cd=vipCouponsData();
+  if(cd.claimed>=qty){showToast('🎟️ Vous avez déjà réclamé vos coupons ce cycle');return;}
+  var coupon={id:'C'+Date.now()+Math.floor(Math.random()*1000),pct:pct,used:false,lvl:lv.name};
+  try{
+    await db.collection('users').doc(currentUser.uid).set({
+      vipCoupons:firebase.firestore.FieldValue.arrayUnion(coupon),
+      vipCouponMeta:{period:cd.key,claimed:cd.claimed+1}
+    },{merge:true});
+    if(userData){userData.vipCoupons=(userData.vipCoupons||[]).concat([coupon]);userData.vipCouponMeta={period:cd.key,claimed:cd.claimed+1};}
+    showToast('🎟️ Coupon -'+pct+'% réclamé ! Utilisez-le au paiement.');
+    renderVipScreen();
+  }catch(e){showToast('❌ '+e.message);}
+}
+// Marque le coupon comme utilisé (appelé après un paiement réussi)
+async function consumeVipCoupon(){
+  if(!_vipCoupon||!currentUser)return;
+  var cid=_vipCoupon.id;var arr=(userData&&userData.vipCoupons)||[];
+  var na=arr.map(function(c){if(c&&c.id===cid)return Object.assign({},c,{used:true});return c;});
+  try{await db.collection('users').doc(currentUser.uid).set({vipCoupons:na},{merge:true});if(userData)userData.vipCoupons=na;}catch(e){}
+  _vipCoupon=null;
+}
+// Rendu des coupons dans la page VIP (style enveloppe, comme la maquette)
+function vipCouponsHtml(){
+  var lv=currentVipLevel().lv;var qty=+lv.qty||0,pct=+lv.discount||0;
+  var cd=vipCouponsData();
+  var reset=({never:'',monthly:'chaque mois',quarterly:'tous les 3 mois',yearly:'chaque année'})[(shopConfig&&shopConfig.loyaltyReset)||'never'];
+  var html='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:18px 0 4px">🎟️ MES COUPONS'+(reset?(' · renouvelés '+reset):'')+'</div>';
+  if(qty<=0||pct<=0){ return html+'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:12px;color:var(--text3);text-align:center">Montez de niveau VIP pour débloquer des coupons de réduction. 🔓</div>'; }
+  html+='<div style="display:flex;gap:10px;overflow-x:auto;padding:4px 0 2px;scrollbar-width:none">';
+  for(var i=0;i<qty;i++){
+    var claimed=i<cd.claimed;
+    html+='<div style="min-width:140px;background:linear-gradient(135deg,#ff5a7a18,#ff5a7a08);border:1.5px dashed #ff5a7a;border-radius:14px;padding:14px 12px;text-align:center;flex-shrink:0">'
+      +'<div style="font-size:11px;color:var(--text3)">Réduction</div>'
+      +'<div style="font-size:26px;font-weight:900;color:#ff3b5c;line-height:1.1">-'+pct+'%</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin:4px 0 8px">'+pct+'% off ×1</div>'
+      +(claimed
+        ? '<div style="background:var(--bg3);color:var(--text3);border-radius:9px;padding:8px;font-size:12px;font-weight:700">✅ Réclamé</div>'
+        : '<button onclick="claimVipCoupon()" style="width:100%;background:#ff3b5c;color:#fff;border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:800;cursor:pointer">Réclamer</button>')
+      +'</div>';
+  }
+  html+='</div>';
+  var avail=cd.list.length;
+  if(avail>0)html+='<div style="font-size:11px;color:#00c853;margin-top:6px;font-weight:700">✅ '+avail+' coupon'+(avail>1?'s':'')+' prêt'+(avail>1?'s':'')+' à utiliser au paiement</div>';
+  return html;
+}
 function renderVipScreen(){
   var el=document.getElementById('vip-body');if(!el)return;
   var L=LEVELS_CFG();
   var VIP_COLORS=['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0']; // bronze, argent-bleu, or, diamant-violet…
-  var RATE=+((shopConfig&&shopConfig.vipExpPerEur))||100;   // EXP gagnés par € dépensé (géré par l'admin)
+  var RATE=vipRate();   // EXP gagnés par € dépensé (géré par l'admin)
   var spent=+((userData&&userData.totalSpent)||0);
-  var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(spent>=L[i].min){lv=L[i];idx=i;}}
+  var exp=spent*RATE;   // EXP du client
+  var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(exp>=L[i].min){lv=L[i];idx=i;}}  // min = seuil EXP
   function col(i){return VIP_COLORS[i]||L[i].color||'#888';}
   // ── Carrousel VIP (balayable, épinglé en haut) ──
   var cards=L.map(function(x,i){
-    var c=col(i),reached=spent>=x.min,cur=(i===idx),next=L[i+1];
+    var c=col(i),reached=exp>=x.min,cur=(i===idx),next=L[i+1];
     var badge=cur?'Actuel':(reached?'Atteint':'Verrouillé');
     var target,curExp,msg;
-    if(cur){ target=next?next.min:(x.min||1); curExp=spent;
-      msg=next?('Dépensez encore <b>'+fmtMoney(Math.max(0,next.min-spent))+'</b> pour <b>VIP'+(i+2)+'</b>'):'🏆 Niveau VIP maximum atteint !'; }
+    if(cur){ target=next?next.min:(x.min||1); curExp=exp;
+      msg=next?('Dépensez encore <b>'+fmtMoney(Math.max(0,(next.min-exp)/RATE))+'</b> pour <b>VIP'+(i+2)+'</b>'):'🏆 Niveau VIP maximum atteint !'; }
     else if(reached){ target=x.min||1; curExp=Math.max(x.min,1); msg='✅ Niveau débloqué'; }
-    else { target=x.min; curExp=spent; msg='Dépensez <b>'+fmtMoney(Math.max(0,x.min-spent))+'</b> pour débloquer <b>VIP'+(i+1)+'</b>'; }
+    else { target=x.min; curExp=exp; msg='Dépensez <b>'+fmtMoney(Math.max(0,(x.min-exp)/RATE))+'</b> pour débloquer <b>VIP'+(i+1)+'</b>'; }
     var pct=Math.min(100,Math.round(curExp/(target||1)*100));
     return '<div style="min-width:100%;scroll-snap-align:center;box-sizing:border-box">'
       +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
@@ -2929,7 +3004,7 @@ function renderVipScreen(){
       +'<span style="font-size:42px;line-height:1">'+x.icon+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">VIP'+(i+1)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
-      +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp*RATE)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target*RATE)+' EXP</span></div>'
+      +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target)+' EXP</span></div>'
       +'<div style="height:11px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:7px 0 8px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+c+'aa,'+c+')"></div></div>'
       +'<div style="font-size:12px;color:var(--text2)">'+msg+'</div>'
       +'</div></div>';
@@ -2950,7 +3025,7 @@ function renderVipScreen(){
         +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+b.desc+'</div></div>';
     }).join('')+'</div>';
   // ── Liste des niveaux ──
-  el.innerHTML=carousel+grid
+  el.innerHTML=carousel+grid+vipCouponsHtml()
     +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px;line-height:1.5">Gagnez des EXP à chaque achat et montez de niveau VIP. 🎮</div>';
   // Positionne le carrousel sur le niveau actuel + gère les points de balayage
   setTimeout(function(){
@@ -3951,7 +4026,7 @@ function refreshProfileUI(){
   var phone=(userData&&userData.phone)?String(userData.phone).trim():'';
   if($('pf-name'))$('pf-name').textContent=currentUser.displayName||'Utilisateur';
   var _pl=$('pf-level');
-  if(_pl){if(loyaltyOn()){var lv=currentLevel();_pl.style.display='block';_pl.innerHTML='<span style="background:'+lv.color+'22;color:'+lv.color+';border:1px solid '+lv.color+'55;border-radius:99px;padding:3px 10px;font-weight:700">'+lv.icon+' Niveau '+lv.name+(lv.discount>0?' · -'+lv.discount+'%':'')+'</span>';}else{_pl.style.display='none';}}
+  if(_pl){var vv=currentVipLevel();var lv=vv.lv;_pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};_pl.innerHTML='<span style="background:'+lv.color+'22;color:'+lv.color+';border:1px solid '+lv.color+'55;border-radius:99px;padding:3px 12px;font-weight:800">'+lv.icon+' VIP'+(vv.idx+1)+' '+lv.name+' ›</span>';}
   if($('pf-email'))$('pf-email').textContent=currentUser.email||'';
   if($('pf-phone'))$('pf-phone').textContent=phone?('📞 '+phone):'';
   if($('pf-name-desc'))$('pf-name-desc').textContent=currentUser.displayName||'—';
@@ -4291,7 +4366,7 @@ async function payCartMoneyFusion(){
       body:JSON.stringify({action:'create',amountEur:total,purpose:'order',orderId:oref.id,name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){try{localStorage.setItem('mf-return','order');}catch(e){}window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','order');}catch(e){}try{consumeVipCoupon();}catch(e){}window.location.href=d.url;return;}
     showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
     if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
   }catch(e){
@@ -6314,7 +6389,7 @@ function renderCartLines(){
     `<div class="pl"><span>Sous-total</span><span>${fmtMoney(sub)}</span></div>`+
     (fee>0?`<div class="pl"><span>Frais</span><span>+ ${fmtMoney(fee)}</span></div>`:'')+
     (disc>0?`<div class="pl disc"><span>Réduction (${appliedPromo.cart.code})</span><span>- ${fmtMoney(disc)}</span></div>`:'')+
-    (lvlDisc>0?`<div class="pl disc"><span>${currentLevel().icon} Fidélité ${currentLevel().name} (-${lvlPct}%)</span><span>- ${fmtMoney(lvlDisc)}</span></div>`:'')+
+    (lvlDisc>0?`<div class="pl disc"><span>🎟️ Coupon VIP (-${lvlPct}%)</span><span>- ${fmtMoney(lvlDisc)}</span></div>`:'')+
     (ptsDisc>0?`<div class="pl disc"><span>🎯 Points utilisés (${ptsUsed} pts)</span><span>- ${fmtMoney(ptsDisc)}</span></div>`:'')+
     `<div class="pl tot"><span>Total à payer</span><b>${fmtMoney(total)}</b></div>`;
   // 🎯 Case à cocher « utiliser mes points » (affichée seulement si le panier y donne droit)
@@ -6328,6 +6403,21 @@ function renderCartLines(){
     }else{
       pc.style.display='none';
     }
+  }
+  // 🎟️ Sélecteur de coupons VIP (le client choisit un coupon réclamé à utiliser)
+  var cvc=document.getElementById('cart-vip-coupons');
+  if(cvc){
+    var coupons=vipCouponsData().list;
+    if(coupons.length>0){
+      cvc.style.display='block';
+      cvc.innerHTML='<div style="font-size:12px;color:var(--text3);font-weight:800;margin-bottom:6px">🎟️ MES COUPONS VIP</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<span onclick="_vipCoupon=null;recomputeCheckout(\'cart\')" style="cursor:pointer;font-size:12px;font-weight:700;padding:8px 12px;border-radius:10px;border:1.5px solid '+(!_vipCoupon?'var(--accent)':'var(--border)')+';color:'+(!_vipCoupon?'var(--accent)':'var(--text3)')+'">Aucun</span>'
+        +coupons.map(function(c){var sel=(_vipCoupon&&_vipCoupon.id===c.id);
+          return '<span onclick=\'_vipCoupon='+JSON.stringify(c).replace(/"/g,"&quot;")+';recomputeCheckout("cart")\' style="cursor:pointer;font-size:12px;font-weight:800;padding:8px 12px;border-radius:10px;border:1.5px solid '+(sel?'#ff3b5c':'var(--border)')+';color:'+(sel?'#ff3b5c':'var(--text2)')+'">🎟️ -'+c.pct+'%</span>';
+        }).join('')
+        +'</div>';
+    }else{ cvc.style.display='none'; _vipCoupon=null; }
   }
   // Liste des méthodes : solde portefeuille + méthodes fermées par l'admin
   const wd=document.getElementById('cart-wallet-desc');
@@ -7064,6 +7154,7 @@ function watchCartOrder(orderId){
 }
 function handleCartPaymentResult(result){showToast('⏳ Paiement en cours de validation…');}
 function showCartPaymentSuccess(order){
+  try{consumeVipCoupon();}catch(e){}
   try{fireDeliverySequence(order);}catch(e){}
   if(cartOrderUnsub){cartOrderUnsub();cartOrderUnsub=null;}
   cart=[];saveCart();renderCart();
