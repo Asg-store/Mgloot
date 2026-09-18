@@ -1,2 +1,2 @@
 # mgloot.com
-    Boutique e-commerce lootr Mali - Vente de consoles, jeux et accessoires Gaming au Mali
+    Boutique e-commerce Mgloot Mali - recharge de jeux vidéo, et accessoires Gaming
