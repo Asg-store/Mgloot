@@ -1308,20 +1308,24 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
     <div style="padding:16px">
       <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;margin-bottom:12px"><input type="checkbox" id="loy-on" onchange="toggleLoyaltyOn(this.checked)"/> Activer les réductions fidélité</label>
       <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Si désactivé, aucune réduction fidélité n'est appliquée. Vous fixez les seuils et les % ci-dessous.</p>
-      <div class="form-grp"><label>Base du niveau</label>
-        <select class="inp inp-sel" id="loy-basis"><option value="points">Points accumulés</option><option value="spent">Argent dépensé (€)</option></select></div>
+      <div class="form-grp"><label>Base du niveau VIP</label>
+        <select class="inp inp-sel" id="loy-basis"><option value="points">Points accumulés</option><option value="spent">Argent dépensé (€) — recommandé VIP</option></select>
+        <span class="hint" style="display:block;margin-top:4px">Pour le système VIP (VIP1→VIP4), choisissez <b>Argent dépensé</b> et mettez des seuils en € (ex : Argent 10, Or 50, Diamant 150).</span></div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥈 Argent</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-silver-min" type="number" min="0" placeholder="500"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-silver-disc" type="number" min="0" max="50" placeholder="0"/></div></div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥈 VIP2 Argent</div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-silver-min" type="number" min="0" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-silver-disc" type="number" min="0" max="50" placeholder="3"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-silver-qty" type="number" min="0" placeholder="1"/></div></div>
       </div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥇 Or</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-gold-min" type="number" min="0" placeholder="2000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-gold-disc" type="number" min="0" max="50" placeholder="0"/></div></div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥇 VIP3 Or</div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-gold-min" type="number" min="0" placeholder="50"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-gold-disc" type="number" min="0" max="50" placeholder="5"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-gold-qty" type="number" min="0" placeholder="2"/></div></div>
       </div>
       <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">💎 Diamant</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-diamond-min" type="number" min="0" placeholder="5000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-diamond-disc" type="number" min="0" max="50" placeholder="0"/></div></div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">💎 VIP4 Diamant</div>
+        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" id="loy-diamond-min" type="number" min="0" placeholder="150"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-diamond-disc" type="number" min="0" max="50" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-diamond-qty" type="number" min="0" placeholder="3"/></div></div>
       </div>
+      <div class="form-grp"><label>🔁 Remise à zéro des coupons</label>
+        <select class="inp inp-sel" id="loy-reset"><option value="never">Jamais</option><option value="monthly">Chaque mois</option><option value="quarterly">Tous les 3 mois</option><option value="yearly">Chaque année</option></select>
+        <span class="hint" style="display:block;margin-top:4px">Les coupons ×N du client se rechargent selon cette période.</span></div>
       <button class="save-btn" onclick="saveLoyalty()">💾 Enregistrer la fidélité</button>
       <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">🎯 Mission « achats par semaine »</div>
@@ -4835,9 +4839,10 @@ async function loadLoyalty(){
     if(document.getElementById('loy-on'))document.getElementById('loy-on').checked=!!c.loyaltyEnabled;
     if(document.getElementById('loy-basis'))document.getElementById('loy-basis').value=c.loyaltyBasis||'points';
     var set=function(id,v){var e=document.getElementById(id);if(e)e.value=(v!=null?v:'');};
-    set('loy-silver-min',lv.silverMin);set('loy-silver-disc',lv.silverDisc);
-    set('loy-gold-min',lv.goldMin);set('loy-gold-disc',lv.goldDisc);
-    set('loy-diamond-min',lv.diamondMin);set('loy-diamond-disc',lv.diamondDisc);
+    set('loy-silver-min',lv.silverMin);set('loy-silver-disc',lv.silverDisc);set('loy-silver-qty',lv.silverQty);
+    set('loy-gold-min',lv.goldMin);set('loy-gold-disc',lv.goldDisc);set('loy-gold-qty',lv.goldQty);
+    set('loy-diamond-min',lv.diamondMin);set('loy-diamond-disc',lv.diamondDisc);set('loy-diamond-qty',lv.diamondQty);
+    if(document.getElementById('loy-reset'))document.getElementById('loy-reset').value=c.loyaltyReset||'never';
     if(document.getElementById('miss-goal'))document.getElementById('miss-goal').value=c.missionBuyGoal||'';
     if(document.getElementById('miss-reward'))document.getElementById('miss-reward').value=c.missionBuyReward||'';
     if(document.getElementById('sad-interval'))document.getElementById('sad-interval').value=(c.adIntervalHours!=null?c.adIntervalHours:'');
@@ -4858,10 +4863,11 @@ async function saveLoyalty(){
     await db.collection('config').doc('shop').set({
       loyaltyEnabled:document.getElementById('loy-on').checked,
       loyaltyBasis:document.getElementById('loy-basis').value,
+      loyaltyReset:document.getElementById('loy-reset')?document.getElementById('loy-reset').value:'never',
       loyaltyLevels:{
-        silverMin:g('loy-silver-min'),silverDisc:g('loy-silver-disc'),
-        goldMin:g('loy-gold-min'),goldDisc:g('loy-gold-disc'),
-        diamondMin:g('loy-diamond-min'),diamondDisc:g('loy-diamond-disc')
+        silverMin:g('loy-silver-min'),silverDisc:g('loy-silver-disc'),silverQty:g('loy-silver-qty'),
+        goldMin:g('loy-gold-min'),goldDisc:g('loy-gold-disc'),goldQty:g('loy-gold-qty'),
+        diamondMin:g('loy-diamond-min'),diamondDisc:g('loy-diamond-disc'),diamondQty:g('loy-diamond-qty')
       }
     },{merge:true});
     toast('✓ Fidélité enregistrée');

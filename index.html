@@ -2863,10 +2863,10 @@ function loyaltyBasis(){return (shopConfig&&shopConfig.loyaltyBasis)||'points';}
 function LEVELS_CFG(){
   var c=(shopConfig&&shopConfig.loyaltyLevels)||{};
   return [
-    {name:'Bronze',icon:'🥉',min:0,discount:+c.bronzeDisc||0,color:'#cd7f32'},
-    {name:'Argent',icon:'🥈',min:(c.silverMin!=null?+c.silverMin:500),discount:+c.silverDisc||0,color:'#9fb0c0'},
-    {name:'Or',icon:'🥇',min:(c.goldMin!=null?+c.goldMin:2000),discount:+c.goldDisc||0,color:'#ffd700'},
-    {name:'Diamant',icon:'💎',min:(c.diamondMin!=null?+c.diamondMin:5000),discount:+c.diamondDisc||0,color:'#00d4ff'}
+    {name:'Bronze',icon:'🥉',min:0,discount:+c.bronzeDisc||0,qty:0,color:'#cd7f32'},
+    {name:'Argent',icon:'🥈',min:(c.silverMin!=null?+c.silverMin:500),discount:+c.silverDisc||0,qty:+c.silverQty||0,color:'#9fb0c0'},
+    {name:'Or',icon:'🥇',min:(c.goldMin!=null?+c.goldMin:2000),discount:+c.goldDisc||0,qty:+c.goldQty||0,color:'#ffd700'},
+    {name:'Diamant',icon:'💎',min:(c.diamondMin!=null?+c.diamondMin:5000),discount:+c.diamondDisc||0,qty:+c.diamondQty||0,color:'#00d4ff'}
   ];
 }
 function loyaltyXP(){
@@ -2899,7 +2899,7 @@ function renderLoyalty(){
 function vipBenefitsFor(idx,lv){
   // Avantages débloqués selon le palier atteint
   return [
-    {ic:'🎫',name:'Réduction '+(lv.discount>0?('-'+lv.discount+'%'):'—'),desc:'sur tous vos achats',on:lv.discount>0},
+    {ic:'🎫',name:'Réduction '+(lv.discount>0?('-'+lv.discount+'%'+(lv.qty>0?(' ×'+lv.qty):'')):'—'),desc:(lv.qty>0?'coupons '+({never:'sans reset',monthly:'chaque mois',quarterly:'tous les 3 mois',yearly:'chaque an'}[(shopConfig&&shopConfig.loyaltyReset)||'never']):'sur vos achats'),on:lv.discount>0},
     {ic:'🏅',name:'Badge VIP',desc:'affiché sur votre profil',on:idx>=1},
     {ic:'🎧',name:'Support prioritaire',desc:'réponse plus rapide',on:idx>=2},
     {ic:'🎁',name:'Cadeaux exclusifs',desc:'offres réservées VIP',on:idx>=3}
@@ -2908,21 +2908,38 @@ function vipBenefitsFor(idx,lv){
 function renderVipScreen(){
   var el=document.getElementById('vip-body');if(!el)return;
   var L=LEVELS_CFG();
-  var spent=+((userData&&userData.totalSpent)||0);   // dépenses cumulées (base €)
+  var VIP_COLORS=['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0']; // bronze, argent-bleu, or, diamant-violet…
+  var spent=+((userData&&userData.totalSpent)||0);
   var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(spent>=L[i].min){lv=L[i];idx=i;}}
-  var next=L[idx+1];
-  var pct=next?Math.min(100,Math.round((spent-lv.min)/((next.min-lv.min)||1)*100)):100;
+  function col(i){return VIP_COLORS[i]||L[i].color||'#888';}
+  // ── Carrousel VIP (balayable, épinglé en haut) ──
+  var cards=L.map(function(x,i){
+    var c=col(i),reached=spent>=x.min,cur=(i===idx),next=L[i+1];
+    var badge=cur?'Actuel':(reached?'Atteint':'Verrouillé');
+    var target,curExp,msg;
+    if(cur){ target=next?next.min:(x.min||1); curExp=spent;
+      msg=next?('Dépensez encore <b>'+fmtMoney(Math.max(0,next.min-spent))+'</b> pour <b>VIP'+(i+2)+'</b>'):'🏆 Niveau VIP maximum atteint !'; }
+    else if(reached){ target=x.min||1; curExp=Math.max(x.min,1); msg='✅ Niveau débloqué'; }
+    else { target=x.min; curExp=spent; msg='Dépensez <b>'+fmtMoney(Math.max(0,x.min-spent))+'</b> pour débloquer <b>VIP'+(i+1)+'</b>'; }
+    var pct=Math.min(100,Math.round(curExp/(target||1)*100));
+    return '<div style="min-width:100%;scroll-snap-align:center;box-sizing:border-box">'
+      +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:42px;line-height:1">'+x.icon+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">VIP'+(i+1)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
+      +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
+      +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+fmtMoney(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+fmtMoney(target)+' EXP</span></div>'
+      +'<div style="height:11px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:7px 0 8px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+c+'aa,'+c+')"></div></div>'
+      +'<div style="font-size:12px;color:var(--text2)">'+msg+'</div>'
+      +'</div></div>';
+  }).join('');
+  var dots=L.map(function(x,i){return '<span data-d="'+i+'" style="width:7px;height:7px;border-radius:99px;background:'+(i===idx?col(i):'var(--border)')+';display:inline-block"></span>';}).join('');
+  var carousel='<style>#vip-carousel::-webkit-scrollbar{display:none}</style>'
+    +'<div id="vip-carousel" style="display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+cards+'</div>'
+    +'<div style="text-align:center;font-size:11px;color:var(--text3);margin:6px 0 2px">← balayez pour voir les autres niveaux →</div>'
+    +'<div id="vip-dots" style="display:flex;gap:6px;justify-content:center;margin-bottom:14px">'+dots+'</div>';
+  // ── Avantages ──
   var bens=vipBenefitsFor(idx,lv);
-  // En-tête médaille
-  var head='<div style="background:linear-gradient(135deg,'+lv.color+'33,'+lv.color+'11);border:1px solid '+lv.color+';border-radius:18px;padding:18px;text-align:center;margin-bottom:14px">'
-    +'<div style="font-size:54px;line-height:1">'+lv.icon+'</div>'
-    +'<div style="font-weight:900;font-size:22px;color:'+lv.color+';margin-top:2px;letter-spacing:.5px">VIP '+lv.name+'</div>'
-    +'<div style="font-size:13px;color:var(--text2);margin-top:6px">Dépensé : <b>'+fmtMoney(spent)+'</b></div>'
-    +'<div style="height:12px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:12px 0 6px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+lv.color+',var(--accent))"></div></div>'
-    +(next?'<div style="font-size:12px;color:var(--text2)">Dépensez encore <b>'+fmtMoney(Math.max(0,next.min-spent))+'</b> pour atteindre '+next.icon+' <b>'+next.name+'</b></div>'
-          :'<div style="font-size:12px;color:var(--gold);font-weight:700">🏆 Niveau VIP maximum atteint !</div>')
-    +'</div>';
-  // Avantages (grille)
   var grid='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">✨ MES AVANTAGES VIP</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
     +bens.map(function(b){
@@ -2931,20 +2948,29 @@ function renderVipScreen(){
         +'<div style="font-size:26px">'+b.ic+'</div>'
         +'<div style="font-weight:800;font-size:13px;margin-top:4px">'+b.name+'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+b.desc+'</div></div>';
-    }).join('')
-    +'</div>';
-  // Tous les niveaux
+    }).join('')+'</div>';
+  // ── Liste des niveaux ──
   var list='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">🏆 TOUS LES NIVEAUX VIP</div>';
   list+=L.map(function(x,i){
-    var reached=spent>=x.min, cur=(i===idx);
-    return '<div style="display:flex;align-items:center;gap:12px;background:'+(cur?x.color+'22':'var(--bg2)')+';border:1px solid '+(cur?x.color:'var(--border)')+';border-radius:14px;padding:12px 14px;margin-bottom:8px">'
+    var c=col(i),reached=spent>=x.min,cur=(i===idx);
+    return '<div style="display:flex;align-items:center;gap:12px;background:'+(cur?c+'22':'var(--bg2)')+';border:1px solid '+(cur?c:'var(--border)')+';border-radius:14px;padding:12px 14px;margin-bottom:8px">'
       +'<span style="font-size:26px">'+x.icon+'</span>'
-      +'<div style="flex:1"><div style="font-weight:800;font-size:14px;color:'+(reached?x.color:'var(--text2)')+'">VIP '+x.name+(cur?' • actuel':'')+'</div>'
+      +'<div style="flex:1"><div style="font-weight:800;font-size:14px;color:'+(reached?c:'var(--text2)')+'">VIP'+(i+1)+' '+x.name+(cur?' • actuel':'')+'</div>'
       +'<div style="font-size:11px;color:var(--text3)">À partir de '+fmtMoney(x.min)+' dépensés'+(x.discount>0?(' · -'+x.discount+'%'):'')+'</div></div>'
       +'<span style="font-size:16px">'+(reached?'✅':'🔒')+'</span></div>';
   }).join('');
-  el.innerHTML=head+grid+list
+  el.innerHTML=carousel+grid+list
     +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5">Votre niveau VIP monte automatiquement selon vos dépenses cumulées sur MgLoot. 🎮</div>';
+  // Positionne le carrousel sur le niveau actuel + gère les points de balayage
+  setTimeout(function(){
+    var car=document.getElementById('vip-carousel');if(!car)return;
+    var w=car.clientWidth;car.scrollLeft=idx*w;
+    car.onscroll=function(){
+      var k=Math.round(car.scrollLeft/(car.clientWidth||1));
+      var ds=document.querySelectorAll('#vip-dots span');
+      for(var j=0;j<ds.length;j++)ds[j].style.background=(j===k)?col(j):'var(--border)';
+    };
+  },60);
 }
 /* ═══════════ DÉFIS & MISSIONS ═══════════ */
 /* ═══════════ MISSIONS GÉRÉES PAR L'ADMIN ═══════════ */
