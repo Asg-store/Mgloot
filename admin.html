@@ -1630,7 +1630,12 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
       </div>
     </div>
     <div class="form-grp"><label>Description</label><textarea class="inp" id="f-desc" rows="3" placeholder="Description courte…" style="resize:vertical"></textarea></div>
-    <div class="form-grp"><label>🔗 Code service FlashTopup (auto-livraison)</label><input class="inp" id="f-sancay" placeholder="Code service FlashTopup (laisser vide si livraison manuelle)"/><span class="hint" style="display:block;margin-top:5px">Code du service sur FlashTopup (onglet Produits/Services). Rempli = ce produit se livre automatiquement par ID joueur.</span></div>
+    <div class="form-grp"><label>🔗 FazerCards — auto-livraison (laisser vide si livraison manuelle)</label>
+      <div class="f-row" style="gap:8px">
+        <input class="inp" id="f-fzrcat" placeholder="category_id (ex: cat_pubgm_1)" style="flex:1"/>
+        <input class="inp" id="f-fzroffer" placeholder="offer_id (ex: offer_60uc)" style="flex:1"/>
+      </div>
+      <span class="hint" style="display:block;margin-top:5px">IDs FazerCards (Catalogue → jeu + offre). Remplis = ce produit se livre automatiquement par ID joueur. Utilisez « 📋 Catalogue FazerCards » ci-dessous pour trouver les IDs.</span></div>
     <div class="f-row">
       <div class="form-grp"><label>Achat avec points</label>
         <select class="inp inp-sel" id="f-pts-on" onchange="document.getElementById('f-pts-cost').disabled=this.value!=='true'">
@@ -2989,7 +2994,8 @@ function editProd(id){
   document.getElementById('f-hot').value=p.featured?'true':'false';
   document.getElementById('f-status').value=p.status||'active';
   document.getElementById('f-game').value=p.game||'';
-  document.getElementById('f-sancay').value=p.ftServiceCode||p.sancayProductId||'';
+  document.getElementById('f-fzrcat').value=p.fzrCat||'';
+  document.getElementById('f-fzroffer').value=p.fzrOffer||'';
   document.getElementById('f-pts-on').value=p.pointsBuyable?'true':'false';
   document.getElementById('f-pts-cost').value=(p.pointsCost!=null&&p.pointsCost>0?p.pointsCost:'');
   document.getElementById('f-pts-cost').disabled=!p.pointsBuyable;
@@ -3016,7 +3022,8 @@ async function saveProduct(){
     pointsCost:parseInt(document.getElementById('f-pts-cost').value)||0,
     maxPointsDiscount:parseInt(document.getElementById('f-pts-max').value)||0,
     game:document.getElementById('f-game').value||'',
-    ftServiceCode:document.getElementById('f-sancay').value.trim()||''};
+    fzrCat:document.getElementById('f-fzrcat').value.trim()||'',
+    fzrOffer:document.getElementById('f-fzroffer').value.trim()||''};
   const id=document.getElementById('f-id').value;
   try{
     if(id){await db.collection('products').doc(id).update(data);toast('✓ Mis à jour !');}
@@ -4612,7 +4619,8 @@ async function addPointsProduct(){
     await db.collection('pointsProducts').add({
       // 🔗 Lien vers le vrai produit du catalogue → livraison Flash Topup automatique
       catalogProductId:prodId,
-      ftServiceCode:prod.ftServiceCode||prod.sancayProductId||'',
+      fzrCat:prod.fzrCat||'',
+      fzrOffer:prod.fzrOffer||'',
       name:prod.name||'Produit',
       pointsCost:cost,
       emoji:'🎁',
