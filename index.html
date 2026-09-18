@@ -1969,6 +1969,15 @@ body.ios .pnotif .pn-ic{border-radius:11px}
   </div>
 </div>
 
+<!-- ════ SCREEN: VIP ════ -->
+<div class="screen" id="screen-vip">
+  <div class="screen-head">
+    <div class="back-btn" onclick="goBack()"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+    <div class="screen-title">👑 Mon VIP</div>
+  </div>
+  <div class="screen-body"><div id="vip-body"><p class="sub" style="margin:0">Chargement…</p></div></div>
+</div>
+
 <!-- ════ SCREEN: BOUTIQUE VPN ════ -->
 <div class="screen" id="screen-vpn">
   <div class="screen-head">
@@ -2882,7 +2891,60 @@ function renderLoyalty(){
     +'<div style="font-weight:800;font-size:17px;color:'+lv.color+'">Niveau '+lv.name+'</div>'
     +(lv.discount>0?'<div style="font-size:12px;color:var(--green);margin-top:2px">🎁 -'+lv.discount+'% sur tous vos achats</div>':'<div style="font-size:12px;color:var(--text3);margin-top:2px">Montez de niveau pour des avantages</div>')
     +'<div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:12px 0 6px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+lv.color+',var(--accent))"></div></div>'
-    +(next?'<div style="font-size:11px;color:var(--text3)">Encore <b>'+fmt(Math.max(0,next.min-xp))+'</b> pour passer '+next.icon+' '+next.name+'</div>':'<div style="font-size:11px;color:var(--gold)">🏆 Niveau maximum atteint !</div>');
+    +(next?'<div style="font-size:11px;color:var(--text3)">Encore <b>'+fmt(Math.max(0,next.min-xp))+'</b> pour passer '+next.icon+' '+next.name+'</div>':'<div style="font-size:11px;color:var(--gold)">🏆 Niveau maximum atteint !</div>')
+    +'<div style="margin-top:10px;font-size:12px;color:var(--accent);font-weight:700">👑 Voir mes avantages VIP →</div>';
+  el.style.cursor='pointer';el.onclick=function(){openScreen('vip');};
+}
+/* ═══════════ 👑 PAGE VIP (niveaux selon les dépenses cumulées) ═══════════ */
+function vipBenefitsFor(idx,lv){
+  // Avantages débloqués selon le palier atteint
+  return [
+    {ic:'🎫',name:'Réduction '+(lv.discount>0?('-'+lv.discount+'%'):'—'),desc:'sur tous vos achats',on:lv.discount>0},
+    {ic:'🏅',name:'Badge VIP',desc:'affiché sur votre profil',on:idx>=1},
+    {ic:'🎧',name:'Support prioritaire',desc:'réponse plus rapide',on:idx>=2},
+    {ic:'🎁',name:'Cadeaux exclusifs',desc:'offres réservées VIP',on:idx>=3}
+  ];
+}
+function renderVipScreen(){
+  var el=document.getElementById('vip-body');if(!el)return;
+  var L=LEVELS_CFG();
+  var spent=+((userData&&userData.totalSpent)||0);   // dépenses cumulées (base €)
+  var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(spent>=L[i].min){lv=L[i];idx=i;}}
+  var next=L[idx+1];
+  var pct=next?Math.min(100,Math.round((spent-lv.min)/((next.min-lv.min)||1)*100)):100;
+  var bens=vipBenefitsFor(idx,lv);
+  // En-tête médaille
+  var head='<div style="background:linear-gradient(135deg,'+lv.color+'33,'+lv.color+'11);border:1px solid '+lv.color+';border-radius:18px;padding:18px;text-align:center;margin-bottom:14px">'
+    +'<div style="font-size:54px;line-height:1">'+lv.icon+'</div>'
+    +'<div style="font-weight:900;font-size:22px;color:'+lv.color+';margin-top:2px;letter-spacing:.5px">VIP '+lv.name+'</div>'
+    +'<div style="font-size:13px;color:var(--text2);margin-top:6px">Dépensé : <b>'+fmtMoney(spent)+'</b></div>'
+    +'<div style="height:12px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:12px 0 6px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+lv.color+',var(--accent))"></div></div>'
+    +(next?'<div style="font-size:12px;color:var(--text2)">Dépensez encore <b>'+fmtMoney(Math.max(0,next.min-spent))+'</b> pour atteindre '+next.icon+' <b>'+next.name+'</b></div>'
+          :'<div style="font-size:12px;color:var(--gold);font-weight:700">🏆 Niveau VIP maximum atteint !</div>')
+    +'</div>';
+  // Avantages (grille)
+  var grid='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">✨ MES AVANTAGES VIP</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    +bens.map(function(b){
+      return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center;position:relative;'+(b.on?'':'opacity:.45')+'">'
+        +(b.on?'':'<div style="position:absolute;top:8px;right:10px;font-size:12px">🔒</div>')
+        +'<div style="font-size:26px">'+b.ic+'</div>'
+        +'<div style="font-weight:800;font-size:13px;margin-top:4px">'+b.name+'</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+b.desc+'</div></div>';
+    }).join('')
+    +'</div>';
+  // Tous les niveaux
+  var list='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">🏆 TOUS LES NIVEAUX VIP</div>';
+  list+=L.map(function(x,i){
+    var reached=spent>=x.min, cur=(i===idx);
+    return '<div style="display:flex;align-items:center;gap:12px;background:'+(cur?x.color+'22':'var(--bg2)')+';border:1px solid '+(cur?x.color:'var(--border)')+';border-radius:14px;padding:12px 14px;margin-bottom:8px">'
+      +'<span style="font-size:26px">'+x.icon+'</span>'
+      +'<div style="flex:1"><div style="font-weight:800;font-size:14px;color:'+(reached?x.color:'var(--text2)')+'">VIP '+x.name+(cur?' • actuel':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">À partir de '+fmtMoney(x.min)+' dépensés'+(x.discount>0?(' · -'+x.discount+'%'):'')+'</div></div>'
+      +'<span style="font-size:16px">'+(reached?'✅':'🔒')+'</span></div>';
+  }).join('');
+  el.innerHTML=head+grid+list
+    +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5">Votre niveau VIP monte automatiquement selon vos dépenses cumulées sur MgLoot. 🎮</div>';
 }
 /* ═══════════ DÉFIS & MISSIONS ═══════════ */
 /* ═══════════ MISSIONS GÉRÉES PAR L'ADMIN ═══════════ */
@@ -4162,33 +4224,6 @@ async function _mfGetPhone(){
   }
   return phone;
 }
-// 💠 Paiement DIRECT MoneyFusion d'un article (compte marketplace ou VPN) :
-//    MoneyFusion crédite le portefeuille du prix exact, puis au retour l'achat est finalisé
-//    automatiquement (livraison). Le client ne voit PAS l'écran « Recharger ».
-async function payItemMoneyFusion(type,id){
-  if(!currentUser){openAuthModal();return;}
-  var price=0;
-  if(type==='account'){var a=(allAccounts||[]).find(function(x){return x.id===id;})||{};price=+a.price||0;}
-  else if(type==='vpn'){var v=(vpnFiles||[]).find(function(x){return x.id===id;})||{};price=+v.price||0;}
-  if(price<=0){showToast('Prix invalide');return;}
-  var phone=await _mfGetPhone();
-  if(!phone){showToast('📱 Numéro de téléphone requis pour MoneyFusion');return;}
-  showToast('⏳ Redirection vers MoneyFusion…');
-  try{
-    const token=await currentUser.getIdToken();
-    const r=await fetch('/api/moneyfusion',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({action:'create',amountEur:price,purpose:'wallet',name:(currentUser.displayName||''),phone:phone})
-    });
-    const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){
-      try{localStorage.setItem('mf-return','buy');localStorage.setItem('mf-bal',String((userData&&userData.walletBalance)||0));localStorage.setItem('mf-buy',JSON.stringify({type:type,id:id}));}catch(e){}
-      window.location.href=d.url;return;
-    }
-    showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
-  }catch(e){showToast('❌ '+(e.message||'Erreur'));}
-}
 async function startRechargeMoneyFusion(amtEuro){
   if(!currentUser){openAuthModal();return;}
   var phone=await _mfGetPhone();
@@ -4203,7 +4238,7 @@ async function startRechargeMoneyFusion(amtEuro){
       body:JSON.stringify({action:'create',amountEur:amtEuro,purpose:'wallet',name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){try{localStorage.setItem('mf-return','wallet');localStorage.setItem('mf-bal',String((userData&&userData.walletBalance)||0));}catch(e){}window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','wallet');}catch(e){}window.location.href=d.url;return;}
     rechargeErr((d&&d.error)||'MoneyFusion indisponible pour le moment.');
     if(btn){btn.disabled=false;btn.textContent='Continuer →';}
   }catch(e){
@@ -4239,7 +4274,7 @@ async function payCartMoneyFusion(){
       body:JSON.stringify({action:'create',amountEur:total,purpose:'order',orderId:oref.id,name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){try{localStorage.setItem('mf-return','order');localStorage.setItem('mf-order',oref.id);}catch(e){}window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','order');}catch(e){}window.location.href=d.url;return;}
     showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
     if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
   }catch(e){
@@ -6031,6 +6066,7 @@ function prepScreen(name){
   if(name==='marketplace')loadMarketplace();
   if(name==='wallet')openWallet();
   if(name==='points')openPoints();
+  if(name==='vip')renderVipScreen();
   if(name==='vpn'){loadVpnFiles();var _pe=document.getElementById('vpn-ping');if(_pe)_pe.innerHTML=pingCardHtml();}
   if(name==='social'){openSocial();loadHotVideos();maybeShowScreenAd('social');}
   if(name==='reviews')openReviews();
@@ -7337,62 +7373,24 @@ async function spinWheel(){
     var p=new URLSearchParams(location.search);
     var r=p.get('ref');
     if(r&&r.length>5)localStorage.setItem('asg-ref',r);
-    // 💠 Retour de paiement MoneyFusion : on VÉRIFIE le vrai résultat (payé ou non)
+    // 💠 Retour de paiement MoneyFusion : message + ouverture de la bonne section
     var pt=p.get('mfdone');
     if(!pt && location.pathname.indexOf('/success')>=0)pt='1';
     if(pt){
       try{history.replaceState(null,'','/');}catch(e){}   // nettoie l'URL
-      var _mfTarget='',_mfBal=0,_mfOrder='';
-      try{_mfTarget=localStorage.getItem('mf-return')||'';_mfBal=parseFloat(localStorage.getItem('mf-bal')||'0')||0;_mfOrder=localStorage.getItem('mf-order')||'';
-        localStorage.removeItem('mf-return');localStorage.removeItem('mf-bal');localStorage.removeItem('mf-order');}catch(e){}
-      setTimeout(function(){ try{_mfVerifyReturn(_mfTarget,_mfBal,_mfOrder);}catch(e){} },1200);
+      var _mfTarget='';try{_mfTarget=localStorage.getItem('mf-return')||'';localStorage.removeItem('mf-return');}catch(e){}
+      setTimeout(function(){
+        if(typeof showToast==='function')showToast('✅ Paiement reçu ! Confirmation dans un instant…');
+        try{if(typeof cart!=='undefined'){cart=[];if(typeof saveCart==='function')saveCart();if(typeof renderCart==='function')renderCart();}}catch(e){}
+        // On ouvre directement la section concernée pour que le client voie le résultat
+        try{
+          if(_mfTarget==='wallet'){ (typeof openScreen==='function')?openScreen('wallet'):0; }
+          else if(_mfTarget==='order'){ (typeof openPayHistory==='function')?openPayHistory():((typeof openScreen==='function')?openScreen('profile'):0); }
+        }catch(e){}
+      },1400);
     }
   }catch(e){}
 })();
-// ✅/❌ Résultat de paiement MoneyFusion (vert si payé, rouge si annulé/échoué)
-function _mfResultOverlay(ok,target){
-  var old=document.getElementById('mf-result-ov');if(old)old.remove();
-  var col=ok?'#00c853':'#ff3b5c';
-  var ov=document.createElement('div');ov.id='mf-result-ov';
-  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px';
-  ov.onclick=function(e){if(e.target===ov)ov.remove();};
-  ov.innerHTML='<div style="background:var(--bg2);border:2px solid '+col+';border-radius:20px;padding:26px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45)">'
-    +'<div style="font-size:52px;line-height:1">'+(ok?'✅':'❌')+'</div>'
-    +'<div style="font-weight:800;font-size:19px;color:'+col+';margin-top:8px">'+(ok?'Paiement reçu !':'Paiement échoué')+'</div>'
-    +'<div style="font-size:13px;color:var(--text2);margin-top:6px;line-height:1.5">'+(ok?('Votre '+(target==='order'?'commande':'recharge')+' est confirmée. 🎉'):'Le paiement n\'a pas été complété. Aucun montant n\'a été débité — vous pouvez réessayer.')+'</div>'
-    +'<button onclick="var e=document.getElementById(\'mf-result-ov\');if(e)e.remove();" style="margin-top:16px;width:100%;padding:13px;border:none;border-radius:12px;font-weight:800;font-size:14px;color:#fff;background:'+col+';cursor:pointer">OK</button>'
-    +'</div>';
-  document.body.appendChild(ov);
-}
-function _mfVerifyReturn(target,balBefore,orderId){
-  function openT(){ try{ if(target==='wallet'){(typeof openScreen==='function')&&openScreen('wallet');} else if(target==='order'){(typeof openPayHistory==='function')?openPayHistory():((typeof openScreen==='function')&&openScreen('profile'));} }catch(e){} }
-  if(!target){ return; }
-  try{showToast('⏳ Vérification du paiement…');}catch(e){}
-  var tries=0,max=12; // ~18 s
-  var timer=setInterval(function(){
-    tries++;
-    if(target==='wallet'){
-      var bal=+((userData&&userData.walletBalance)||0);
-      if(bal>balBefore+0.001){ clearInterval(timer);_mfResultOverlay(true,target);openT(); }
-      else if(tries>=max){ clearInterval(timer);_mfResultOverlay(false,target);openT(); }
-    } else if(target==='buy'){
-      // MoneyFusion a crédité le portefeuille → on finalise l'achat (compte/VPN) automatiquement
-      var bal2=+((userData&&userData.walletBalance)||0);
-      if(bal2>balBefore+0.001){
-        clearInterval(timer);
-        var buy={};try{buy=JSON.parse(localStorage.getItem('mf-buy')||'{}')||{};localStorage.removeItem('mf-buy');}catch(e){}
-        try{showToast('✅ Paiement reçu — finalisation de l\'achat…');}catch(e){}
-        setTimeout(function(){ try{ if(buy.type==='account'&&typeof buyAccountWith==='function')buyAccountWith('wallet',buy.id); else if(buy.type==='vpn'&&typeof buyVpn==='function')buyVpn(buy.id,'wallet'); }catch(e){} },800);
-      } else if(tries>=max){ clearInterval(timer);_mfResultOverlay(false,'buy'); }
-    } else if(target==='order' && orderId){
-      db.collection('orders').doc(orderId).get().then(function(d){
-        var st=(d.exists&&(d.data()||{}).status)||'pending';
-        if(st==='paid'||st==='delivered'||st==='shipped'){ clearInterval(timer);_mfResultOverlay(true,target);openT(); }
-        else if(tries>=max){ clearInterval(timer);_mfResultOverlay(false,target);openT(); }
-      }).catch(function(){ if(tries>=max){clearInterval(timer);_mfResultOverlay(false,target);openT();} });
-    } else { clearInterval(timer);openT(); }
-  },1500);
-}
 /* 🎁 Objectif et récompense de parrainage — réglables par l'admin
    dans config/shop (inviteGoal / inviteReward). Valeurs par défaut : 10 / 500. */
 function inviteGoal(){var n=+(shopConfig&&shopConfig.inviteGoal);return (n>0)?n:10;}
@@ -8004,7 +8002,7 @@ function renderVpnShop(){
     }else{
       if(pts>0)acts+='<button class="vpn-buy" onclick="buyVpn(\''+v.id+'\',\'points\')">⭐ '+pts+' pts</button>';
       if(price>0)acts+='<button class="vpn-buy alt" onclick="buyVpn(\''+v.id+'\',\'wallet\')">💰 '+fmtMoney(price)+'</button>';
-      if(price>0 && ((shopConfig&&shopConfig.payMethods&&shopConfig.payMethods.moneyfusion)===true))acts+='<button class="vpn-buy" style="background:linear-gradient(135deg,#00b0ff,#7c3aed)" onclick="payItemMoneyFusion(\'vpn\',\''+v.id+'\')">💠 MoneyFusion</button>';
+      if(price>0 && ((shopConfig&&shopConfig.payMethods&&shopConfig.payMethods.moneyfusion)===true))acts+='<button class="vpn-buy" style="background:linear-gradient(135deg,#00b0ff,#7c3aed)" onclick="topupForVpn(\''+v.id+'\')">💠 MoneyFusion</button>';
       if(price>0)acts+='<button class="vpn-buy" style="background:linear-gradient(135deg,#00b96b,#00d4a0)" onclick="payVpnDirect(\''+v.id+'\')">💳 Payer direct</button>';
       if(!acts)acts='<button class="vpn-buy" onclick="buyVpn(\''+v.id+'\',\'free\')">Obtenir</button>';
     }
@@ -8727,7 +8725,7 @@ function openAccountPay(id){
   if(pm.applepay!==false)html+=row('🍏','Apple Pay','Paiement rapide Apple',"closeAccountPay();openAccountCheckout('"+id+"')");
   if(pm.fedapay!==false)html+=row('📱','Mobile Money (FedaPay)','MTN · Moov · Wave',"closeAccountPay();payAccountViaTopup('"+id+"')");
   if(pm.cinetpay!==false)html+=row('🟠','Orange Money Mali (CinetPay)','Orange · Moov Mali',"closeAccountPay();payAccountViaTopup('"+id+"')");
-  if(pm.moneyfusion===true)html+=row('<img src="/moneyfusion-logo.png" style="width:44px;height:30px;object-fit:contain;vertical-align:middle" onerror="this.outerHTML=\'💠\'">','MoneyFusion','Orange Money, MTN, Wave, Moov, Carte',"closeAccountPay();payItemMoneyFusion('account','"+id+"')");
+  if(pm.moneyfusion===true)html+=row('<img src="/moneyfusion-logo.png" style="width:22px;height:22px;object-fit:contain;vertical-align:middle" onerror="this.outerHTML=\'💠\'">','MoneyFusion','Orange Money, MTN, Wave, Moov, Carte',"closeAccountPay();payAccountViaTopup('"+id+"')");
 
   var box=document.getElementById('accpay-body');
   if(box)box.innerHTML='<div style="font-size:13px;color:var(--text2);margin-bottom:12px">'
