@@ -1326,6 +1326,8 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
       <div class="form-grp"><label>🔁 Remise à zéro des coupons</label>
         <select class="inp inp-sel" id="loy-reset"><option value="never">Jamais</option><option value="monthly">Chaque mois</option><option value="quarterly">Tous les 3 mois</option><option value="yearly">Chaque année</option></select>
         <span class="hint" style="display:block;margin-top:4px">Les coupons ×N du client se rechargent selon cette période.</span></div>
+      <div class="form-grp"><label>⚡ EXP gagnés par € dépensé</label><input class="inp" id="loy-exprate" type="number" min="1" placeholder="100"/>
+        <span class="hint" style="display:block;margin-top:4px">Ex : 100 = le client gagne 100 EXP par € dépensé. Les seuils ci-dessous sont alors en € (VIP2 à 10 € = 1000 EXP affichés).</span></div>
       <button class="save-btn" onclick="saveLoyalty()">💾 Enregistrer la fidélité</button>
       <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px">🎯 Mission « achats par semaine »</div>
@@ -4843,6 +4845,7 @@ async function loadLoyalty(){
     set('loy-gold-min',lv.goldMin);set('loy-gold-disc',lv.goldDisc);set('loy-gold-qty',lv.goldQty);
     set('loy-diamond-min',lv.diamondMin);set('loy-diamond-disc',lv.diamondDisc);set('loy-diamond-qty',lv.diamondQty);
     if(document.getElementById('loy-reset'))document.getElementById('loy-reset').value=c.loyaltyReset||'never';
+    if(document.getElementById('loy-exprate'))document.getElementById('loy-exprate').value=(c.vipExpPerEur!=null?c.vipExpPerEur:'');
     if(document.getElementById('miss-goal'))document.getElementById('miss-goal').value=c.missionBuyGoal||'';
     if(document.getElementById('miss-reward'))document.getElementById('miss-reward').value=c.missionBuyReward||'';
     if(document.getElementById('sad-interval'))document.getElementById('sad-interval').value=(c.adIntervalHours!=null?c.adIntervalHours:'');
@@ -4864,6 +4867,7 @@ async function saveLoyalty(){
       loyaltyEnabled:document.getElementById('loy-on').checked,
       loyaltyBasis:document.getElementById('loy-basis').value,
       loyaltyReset:document.getElementById('loy-reset')?document.getElementById('loy-reset').value:'never',
+      vipExpPerEur:(+document.getElementById('loy-exprate').value||100),
       loyaltyLevels:{
         silverMin:g('loy-silver-min'),silverDisc:g('loy-silver-disc'),silverQty:g('loy-silver-qty'),
         goldMin:g('loy-gold-min'),goldDisc:g('loy-gold-disc'),goldQty:g('loy-gold-qty'),

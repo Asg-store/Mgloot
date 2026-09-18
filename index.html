@@ -2909,6 +2909,7 @@ function renderVipScreen(){
   var el=document.getElementById('vip-body');if(!el)return;
   var L=LEVELS_CFG();
   var VIP_COLORS=['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0']; // bronze, argent-bleu, or, diamant-violet…
+  var RATE=+((shopConfig&&shopConfig.vipExpPerEur))||100;   // EXP gagnés par € dépensé (géré par l'admin)
   var spent=+((userData&&userData.totalSpent)||0);
   var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(spent>=L[i].min){lv=L[i];idx=i;}}
   function col(i){return VIP_COLORS[i]||L[i].color||'#888';}
@@ -2928,7 +2929,7 @@ function renderVipScreen(){
       +'<span style="font-size:42px;line-height:1">'+x.icon+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">VIP'+(i+1)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
-      +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+fmtMoney(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+fmtMoney(target)+' EXP</span></div>'
+      +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp*RATE)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target*RATE)+' EXP</span></div>'
       +'<div style="height:11px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:7px 0 8px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+c+'aa,'+c+')"></div></div>'
       +'<div style="font-size:12px;color:var(--text2)">'+msg+'</div>'
       +'</div></div>';
@@ -2936,8 +2937,7 @@ function renderVipScreen(){
   var dots=L.map(function(x,i){return '<span data-d="'+i+'" style="width:7px;height:7px;border-radius:99px;background:'+(i===idx?col(i):'var(--border)')+';display:inline-block"></span>';}).join('');
   var carousel='<style>#vip-carousel::-webkit-scrollbar{display:none}</style>'
     +'<div id="vip-carousel" style="display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+cards+'</div>'
-    +'<div style="text-align:center;font-size:11px;color:var(--text3);margin:6px 0 2px">← balayez pour voir les autres niveaux →</div>'
-    +'<div id="vip-dots" style="display:flex;gap:6px;justify-content:center;margin-bottom:14px">'+dots+'</div>';
+    +'<div id="vip-dots" style="display:flex;gap:6px;justify-content:center;margin:8px 0 16px">'+dots+'</div>';
   // ── Avantages ──
   var bens=vipBenefitsFor(idx,lv);
   var grid='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">✨ MES AVANTAGES VIP</div>'
@@ -2950,17 +2950,8 @@ function renderVipScreen(){
         +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+b.desc+'</div></div>';
     }).join('')+'</div>';
   // ── Liste des niveaux ──
-  var list='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:6px 0 8px">🏆 TOUS LES NIVEAUX VIP</div>';
-  list+=L.map(function(x,i){
-    var c=col(i),reached=spent>=x.min,cur=(i===idx);
-    return '<div style="display:flex;align-items:center;gap:12px;background:'+(cur?c+'22':'var(--bg2)')+';border:1px solid '+(cur?c:'var(--border)')+';border-radius:14px;padding:12px 14px;margin-bottom:8px">'
-      +'<span style="font-size:26px">'+x.icon+'</span>'
-      +'<div style="flex:1"><div style="font-weight:800;font-size:14px;color:'+(reached?c:'var(--text2)')+'">VIP'+(i+1)+' '+x.name+(cur?' • actuel':'')+'</div>'
-      +'<div style="font-size:11px;color:var(--text3)">À partir de '+fmtMoney(x.min)+' dépensés'+(x.discount>0?(' · -'+x.discount+'%'):'')+'</div></div>'
-      +'<span style="font-size:16px">'+(reached?'✅':'🔒')+'</span></div>';
-  }).join('');
-  el.innerHTML=carousel+grid+list
-    +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5">Votre niveau VIP monte automatiquement selon vos dépenses cumulées sur MgLoot. 🎮</div>';
+  el.innerHTML=carousel+grid
+    +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px;line-height:1.5">Gagnez des EXP à chaque achat et montez de niveau VIP. 🎮</div>';
   // Positionne le carrousel sur le niveau actuel + gère les points de balayage
   setTimeout(function(){
     var car=document.getElementById('vip-carousel');if(!car)return;
