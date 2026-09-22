@@ -2945,6 +2945,13 @@ function certBadge(color,size){
   return '<svg viewBox="0 0 24 24" width="'+size+'" height="'+size+'" style="vertical-align:middle;display:inline-block;margin-left:3px"><path fill="'+color+'" d="M23 12l-2.44-2.78.34-3.68-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.72l-3.61.81.34 3.68L1 12l2.44 2.78-.34 3.69 3.61.82L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.22 3.61-.82-.34-3.68z"/><path fill="#fff" d="M10.09 16.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.34-5.36 1.48 1.48z"/></svg>';
 }
 function myCertColor(){try{return vipCertColor(currentVipLevel().idx);}catch(e){return null;}}
+// Avatar du client (photo de profil) encadré de la couleur du niveau — remplace la médaille emoji
+function vipAvatarHtml(color){
+  var photo=(currentUser&&currentUser.photoURL)||(userData&&userData.photoURL)||'';
+  var nm=(currentUser&&(currentUser.displayName||currentUser.email))||'?';
+  if(photo)return '<img src="'+photo+'" alt="" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2.5px solid '+color+';flex-shrink:0">';
+  return '<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,'+color+',#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;border:2.5px solid '+color+';flex-shrink:0">'+((nm[0]||'?').toUpperCase())+'</div>';
+}
 // Bloc « profil vendeur » d'une annonce (photo + nom + certificat)
 function sellerBlockHtml(a){
   var official=(a.isOfficial===true);
@@ -3052,7 +3059,7 @@ function renderVipScreen(){
     return '<div style="min-width:100%;scroll-snap-align:center;box-sizing:border-box">'
       +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
       +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<span style="font-size:42px;line-height:1">'+x.icon+'</span>'
+      +vipAvatarHtml(c)
       +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">VIP'+(i+1)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
       +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target)+' EXP</span></div>'
@@ -9125,6 +9132,7 @@ function openChat(){
 let _chatAdsLoaded=false;
 function loadChatAds(){
   const box=document.getElementById('chat-ads');if(!box)return;
+  box.style.display='none';box.innerHTML='';return;   // ❌ Annonces sponsorisées retirées du support
   const render=function(){
     const now=Date.now();
     const promo=(allAccounts||[]).filter(function(a){
@@ -9174,7 +9182,11 @@ function subscribeChat(){
           // 🚫 On n'affiche pas les messages vides (média non envoyé / texte vide)
           if(!txt&&!hasMedia)return'';
           const side=(m.from==='admin'||m.from==='bot')?'admin':'user';
-          const tag=m.from==='bot'?'<b style="display:block;font-size:10px;opacity:.7;margin-bottom:2px">🤖 Assistant MgLoot</b>':(m.from==='admin'?'<b style="display:flex;align-items:center;font-size:10px;opacity:.85;margin-bottom:2px">👨‍💼 MGLOOT'+certBadge('#1d9bf6',12)+'</b>':'');
+          const _mc=(function(){try{return myCertColor();}catch(e){return null;}})();
+          const _mav=((currentUser&&currentUser.photoURL)||(userData&&userData.photoURL)||'');
+          const _mnm=(currentUser&&(currentUser.displayName||(currentUser.email||'').split('@')[0]))||'Moi';
+          const _uAv=_mav?('<img src="'+_mav+'" style="width:16px;height:16px;border-radius:50%;object-fit:cover">'):('<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">'+((_mnm[0]||'?').toUpperCase())+'</span>');
+          const tag=m.from==='bot'?'<b style="display:block;font-size:10px;opacity:.7;margin-bottom:2px">🤖 Assistant MgLoot</b>':(m.from==='admin'?'<b style="display:flex;align-items:center;font-size:10px;opacity:.85;margin-bottom:2px">👨‍💼 MGLOOT'+certBadge('#1d9bf6',12)+'</b>':'<b style="display:flex;align-items:center;gap:4px;font-size:10px;opacity:.85;margin-bottom:3px">'+_uAv+_mnm+(_mc?certBadge(_mc,12):'')+'</b>');
           let body=txt?`<span class="msg-tx" dir="auto">${fmtChatText(txt)}</span>`:'';
           if(hasMedia){const i=mIdx++;body+=chatMediaHTML(m.media,'chat-c',i);}
           // Le client peut supprimer ses propres messages
