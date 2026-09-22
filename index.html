@@ -40,7 +40,26 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Comfortaa:wght@400;500;700&display=swap" rel="stylesheet"/>
-<style id="user-font-style"></style>
+<style id="user-font-style">/* 👑 Cadres VIP autour de la photo de profil (animation qui monte en beauté dès VIP6) */
+.vip-av{position:relative;isolation:isolate}
+.pf-cam{position:absolute;right:-2px;bottom:-2px;background:var(--accent);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg);z-index:3}
+.vip-av::before{content:'';position:absolute;inset:-6px;border-radius:50%;z-index:-1;background:var(--vipc,#cd7f32)}
+.vip-av::after{content:'';position:absolute;inset:-6px;border-radius:50%;z-index:-2}
+.vip-av-0{--vipc:#cd7f32}.vip-av-1{--vipc:#6aa0d8}.vip-av-2{--vipc:#f0b429}.vip-av-3{--vipc:#00d4ff}.vip-av-4{--vipc:#2ecc71}
+.vip-av-5{--vipc:#c0c0c0}.vip-av-6{--vipc:#9aa0a6}.vip-av-7{--vipc:#d9c7a3}.vip-av-8{--vipc:#c4b5fd}.vip-av-9{--vipc:#a3e635}.vip-av-10{--vipc:#1d9bf6}
+.vip-av-5::after{box-shadow:0 0 0 0 var(--vipc);animation:vipPulse 2s ease-out infinite}
+.vip-av-6::before{background:conic-gradient(from 0deg,var(--vipc),#ffffff88,var(--vipc));animation:vipSpin 5s linear infinite}
+.vip-av-7::before{background:conic-gradient(from 0deg,var(--vipc),#fff,var(--vipc));animation:vipSpin 4s linear infinite}
+.vip-av-7::after{box-shadow:0 0 14px 2px var(--vipc);animation:vipPulse 2.4s ease-out infinite}
+.vip-av-8::before{inset:-7px;background:conic-gradient(from 0deg,var(--vipc),#fff,#a855f7,var(--vipc));animation:vipSpin 3s linear infinite}
+.vip-av-8::after{box-shadow:0 0 18px 3px var(--vipc);animation:vipPulse 2s ease-out infinite}
+.vip-av-9::before{inset:-8px;background:conic-gradient(from 0deg,#a3e635,#22d3ee,#a855f7,#f59e0b,#a3e635);animation:vipSpin 2.4s linear infinite}
+.vip-av-9::after{box-shadow:0 0 22px 4px #a3e635aa;animation:vipPulse 1.7s ease-out infinite}
+.vip-av-10::before{inset:-9px;background:conic-gradient(from 0deg,#1d9bf6,#22d3ee,#a855f7,#ff2d95,#f59e0b,#1d9bf6);animation:vipSpin 2s linear infinite}
+.vip-av-10::after{box-shadow:0 0 26px 6px #1d9bf6cc;animation:vipPulse 1.4s ease-out infinite}
+@keyframes vipSpin{to{transform:rotate(360deg)}}
+@keyframes vipPulse{0%{box-shadow:0 0 8px 1px var(--vipc,#1d9bf6)}50%{box-shadow:0 0 22px 6px var(--vipc,#1d9bf6)}100%{box-shadow:0 0 8px 1px var(--vipc,#1d9bf6)}}
+</style>
 <link rel="stylesheet" href="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.66.1/adyen.css" crossorigin="anonymous"/>
 <script src="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/5.66.1/adyen.js" crossorigin="anonymous"></script>
 <script src="https://cdn.fedapay.com/checkout.js?v=1.1.7"></script>
@@ -2977,6 +2996,7 @@ function vipCouponsData(){
   var list=(u.vipCoupons||[]).filter(function(c){return c&&!c.used;}); // coupons non utilisés (n'expirent jamais)
   return {key:key,claimed:claimed,list:list};
 }
+function vipLabel(i){return i>=10?'VIP MAX':('VIP'+(i+1));}
 function vipColorIdx(i){return VIP_PALETTE[i]||'#ff3b5c';}
 async function claimVipCoupon(li){
   if(!currentUser){openAuthModal();return;}
@@ -2985,7 +3005,7 @@ async function claimVipCoupon(li){
   var lv=L[li];var qty=+lv.qty||0,pct=+lv.discount||0;
   if(qty<=0||pct<=0){showToast('Aucun coupon à ce niveau');return;}
   var cd=vipCouponsData();var got=+(cd.claimed[li]||0);
-  if(got>=qty){showToast('🎟️ Déjà réclamé pour VIP'+(li+1)+' ce cycle');return;}
+  if(got>=qty){showToast('🎟️ Déjà réclamé pour '+vipLabel(li)+' ce cycle');return;}
   var coupon={id:'C'+Date.now()+Math.floor(Math.random()*1000),pct:pct,used:false,lvl:lv.name};
   var nclaim=Object.assign({},cd.claimed);nclaim[li]=got+1;
   try{
@@ -2994,7 +3014,7 @@ async function claimVipCoupon(li){
       vipCouponMeta:{period:cd.key,claimed:nclaim}
     },{merge:true});
     if(userData){userData.vipCoupons=(userData.vipCoupons||[]).concat([coupon]);userData.vipCouponMeta={period:cd.key,claimed:nclaim};}
-    showToast('🎟️ Coupon VIP'+(li+1)+' -'+pct+'% réclamé !');
+    showToast('🎟️ Coupon '+vipLabel(li)+' -'+pct+'% réclamé !');
     renderVipScreen();
   }catch(e){showToast('❌ '+e.message);}
 }
@@ -3052,15 +3072,15 @@ function renderVipScreen(){
     var badge=cur?'Actuel':(reached?'Atteint':'Verrouillé');
     var target,curExp,msg;
     if(cur){ target=next?next.min:(x.min||1); curExp=exp;
-      msg=next?('Dépensez encore <b>'+fmtMoney(Math.max(0,(next.min-exp)/RATE))+'</b> pour <b>VIP'+(i+2)+'</b>'):'🏆 Niveau VIP maximum atteint !'; }
+      msg=next?('Dépensez encore <b>'+fmtMoney(Math.max(0,(next.min-exp)/RATE))+'</b> pour <b>'+vipLabel(i+1)+'</b>'):'🏆 Niveau VIP maximum atteint !'; }
     else if(reached){ target=x.min||1; curExp=Math.max(x.min,1); msg='✅ Niveau débloqué'; }
-    else { target=x.min; curExp=exp; msg='Dépensez <b>'+fmtMoney(Math.max(0,(x.min-exp)/RATE))+'</b> pour débloquer <b>VIP'+(i+1)+'</b>'; }
+    else { target=x.min; curExp=exp; msg='Dépensez <b>'+fmtMoney(Math.max(0,(x.min-exp)/RATE))+'</b> pour débloquer <b>'+vipLabel(i)+'</b>'; }
     var pct=Math.min(100,Math.round(curExp/(target||1)*100));
     return '<div style="min-width:100%;scroll-snap-align:center;box-sizing:border-box">'
       +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
       +'<div style="display:flex;align-items:center;gap:10px">'
       +vipAvatarHtml(c)
-      +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">VIP'+(i+1)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">'+vipLabel(i)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
       +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target)+' EXP</span></div>'
       +'<div style="height:11px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:7px 0 8px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+c+'aa,'+c+')"></div></div>'
@@ -4078,8 +4098,12 @@ function refreshProfileUI(){
   var $=function(id){return document.getElementById(id);};
   var av=$('pf-avatar');
   if(av){
-    if(currentUser.photoURL)av.innerHTML='<img src="'+currentUser.photoURL+'" style="width:100%;height:100%;object-fit:cover">';
-    else av.textContent=(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase();
+    var _vi=(function(){try{return currentVipLevel().idx;}catch(e){return 0;}})();
+    var _ph=currentUser.photoURL||(userData&&userData.photoURL)||'';
+    av.className='vip-av vip-av-'+_vi;
+    av.style.cursor='pointer';av.onclick=changeProfilePhoto;
+    if(_ph)av.innerHTML='<img src="'+_ph+'" style="width:100%;height:100%;object-fit:cover">'+'<span class="pf-cam">📷</span>';
+    else av.innerHTML='<span>'+(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase()+'</span><span class="pf-cam">📷</span>';
   }
   var phone=(userData&&userData.phone)?String(userData.phone).trim():'';
   if($('pf-name')){var _cc=myCertColor();$('pf-name').innerHTML=(currentUser.displayName||'Utilisateur')+(_cc?certBadge(_cc,17):'');}
@@ -4087,7 +4111,7 @@ function refreshProfileUI(){
   if(_pl){var vv=currentVipLevel();var lv=vv.lv;var c=(VIP_PALETTE[vv.idx]||lv.color);
     _pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};
     _pl.innerHTML='<span style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,'+c+'26,'+c+'0d);color:'+c+';border:1.5px solid '+c+';border-radius:99px;padding:5px 14px 5px 8px;font-weight:800;font-size:13px;box-shadow:0 2px 8px '+c+'33">'
-      +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>VIP'+(vv.idx+1)+' '+lv.name+' <span style="opacity:.7">›</span></span>';
+      +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>'+vipLabel(vv.idx)+' '+lv.name+' <span style="opacity:.7">›</span></span>';
   }
   if($('pf-email'))$('pf-email').textContent=currentUser.email||'';
   if($('pf-phone'))$('pf-phone').textContent=phone?('📞 '+phone):'';
@@ -9402,6 +9426,41 @@ function streamReveal(uid,full){
 var SUPABASE_URL='https://vnzvxxararinstgomcee.supabase.co';
 var SUPABASE_KEY='sb_publishable_alBM3uiambEatc5CqEcLDw_IlhXJRwy';
 var SUPABASE_BUCKET='Lootr';
+function supabaseUploadImage(file){
+  return new Promise(function(resolve,reject){
+    if(!SUPABASE_URL||!SUPABASE_KEY){reject(new Error('Supabase non configuré'));return;}
+    var ext=((file.name||'').split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase()||'jpg';
+    var path='avatars/'+(currentUser?currentUser.uid:'anon')+'_'+Date.now()+'.'+ext;
+    fetch(SUPABASE_URL+'/storage/v1/object/'+SUPABASE_BUCKET+'/'+path,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':file.type||'image/jpeg','x-upsert':'true'},
+      body:file
+    }).then(function(r){
+      if(r.ok){ resolve(SUPABASE_URL+'/storage/v1/object/public/'+SUPABASE_BUCKET+'/'+path); }
+      else { r.text().then(function(t){ reject(new Error('Supabase '+r.status+' '+String(t).slice(0,120))); }); }
+    }).catch(reject);
+  });
+}
+// 📷 Le client choisit/change sa photo de profil depuis sa galerie (hébergée sur ImgBB)
+function changeProfilePhoto(){
+  if(!currentUser){openAuthModal();return;}
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=async function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    if(f.size>8*1024*1024){showToast('Image trop lourde (max 8 Mo)');return;}
+    showToast('⏳ Envoi de la photo…');
+    try{
+      var url=await imgbbUploadClient(f);   // ✅ Photos → ImgBB (vidéos → Supabase)
+      if(!url)throw new Error('Upload échoué');
+      await currentUser.updateProfile({photoURL:url});
+      await db.collection('users').doc(currentUser.uid).set({photoURL:url},{merge:true});
+      if(userData)userData.photoURL=url;
+      showToast('✅ Photo de profil mise à jour !');
+      try{refreshProfileUI();}catch(e){}
+    }catch(e){showToast('❌ '+(e.message||'Échec'));}
+  };
+  inp.click();
+}
 function supabaseUploadVideo(file){
   return new Promise(function(resolve,reject){
     if(!SUPABASE_URL||!SUPABASE_KEY){reject(new Error('Supabase non configuré'));return;}

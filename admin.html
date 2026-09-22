@@ -4851,7 +4851,7 @@ function renderVipTiers(){
     var c=t.color||(window._VIP_DEF?window._VIP_DEF.co[i]:'#888')||'#888';
     return '<div class="vip-tier-row" style="border:1px solid '+c+';border-radius:12px;padding:12px;margin-bottom:10px">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<span style="font-weight:800;font-size:13px;color:'+c+'">VIP'+(i+1)+'</span>'
+      +'<span style="font-weight:800;font-size:13px;color:'+c+'">'+(i>=10?'VIP MAX':('VIP'+(i+1)))+'</span>'
       +'<input class="inp vt-icon" value="'+(t.icon||'')+'" style="width:52px;text-align:center" maxlength="4"/>'
       +'<input class="inp vt-name" value="'+(t.name||'')+'" placeholder="Nom" style="flex:1"/>'
       +'<input class="inp vt-color" value="'+c+'" style="width:82px" placeholder="#couleur"/>'
@@ -4868,7 +4868,7 @@ function renderVipTiers(){
 }
 function addVipTier(){
   _collectVipTiers();
-  if(_vipTiers.length>=12){toast('Maximum 12 niveaux',true);return;}
+  if(_vipTiers.length>=11){toast('Maximum 11 niveaux (VIP1→VIP MAX)',true);return;}
   var i=_vipTiers.length;var D=window._VIP_DEF||{ic:[],nm:[],co:[]};
   var last=_vipTiers[_vipTiers.length-1]||{min:0};
   _vipTiers.push({name:D.nm[i]||('VIP'+(i+1)),icon:D.ic[i]||'👑',min:(+last.min||0)+10000,discount:0,qty:0,color:D.co[i]||'#ff2d95'});
