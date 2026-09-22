@@ -2290,7 +2290,10 @@ body.ios .pnotif .pn-ic{border-radius:11px}
   <div class="screen-head"><button class="back-btn" onclick="goBack()">←</button><div class="screen-title">👤 Mon profil</div></div>
   <div class="screen-body">
     <div style="text-align:center;margin:10px 0 20px">
-      <div id="pf-avatar" style="width:84px;height:84px;border-radius:50%;margin:0 auto 10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:26px;color:#fff;overflow:hidden"></div>
+      <div id="pf-av-wrap" style="position:relative;width:84px;height:84px;margin:0 auto 10px">
+        <div id="pf-avatar" style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:26px;color:#fff;overflow:hidden"></div>
+        <img id="pf-frame" alt="" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:150%;height:150%;pointer-events:none;z-index:4"/>
+      </div>
       <div id="pf-name" style="font-weight:800;font-size:18px"></div>
       <div id="pf-level" style="font-size:12px;margin-top:4px"></div>
       <div id="pf-email" style="font-size:12px;color:var(--text3);margin-top:3px"></div>
@@ -2896,7 +2899,8 @@ function LEVELS_CFG(){
       min:(i===0?0:(+x.min||0)),
       discount:+x.discount||0,
       qty:+x.qty||0,
-      color:x.color||VIP_PALETTE[i]||'#888'
+      color:x.color||VIP_PALETTE[i]||'#888',
+      frame:x.frame||''
     };});
   }
   // Repli : anciens 4 niveaux (compatibilité)
@@ -2997,6 +3001,7 @@ function vipCouponsData(){
   return {key:key,claimed:claimed,list:list};
 }
 function vipLabel(i){return i>=10?'VIP MAX':('VIP'+(i+1));}
+function vipFull(i,name){var l=vipLabel(i);return (String(name||'').toLowerCase()==='max')?l:(l+' '+name);}
 function vipColorIdx(i){return VIP_PALETTE[i]||'#ff3b5c';}
 async function claimVipCoupon(li){
   if(!currentUser){openAuthModal();return;}
@@ -3080,7 +3085,7 @@ function renderVipScreen(){
       +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
       +'<div style="display:flex;align-items:center;gap:10px">'
       +vipAvatarHtml(c)
-      +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">'+vipLabel(i)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+x.name+'</span></div></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">'+vipLabel(i)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+(String(x.name||'').toLowerCase()==='max'?'':x.name)+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
       +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target)+' EXP</span></div>'
       +'<div style="height:11px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:7px 0 8px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+c+'aa,'+c+')"></div></div>'
@@ -4098,12 +4103,16 @@ function refreshProfileUI(){
   var $=function(id){return document.getElementById(id);};
   var av=$('pf-avatar');
   if(av){
-    var _vi=(function(){try{return currentVipLevel().idx;}catch(e){return 0;}})();
+    var _vv=(function(){try{return currentVipLevel();}catch(e){return {idx:0,lv:{}};}})();
+    var _vi=_vv.idx,_frame=(_vv.lv&&_vv.lv.frame)||'';
     var _ph=currentUser.photoURL||(userData&&userData.photoURL)||'';
-    av.className='vip-av vip-av-'+_vi;
     av.style.cursor='pointer';av.onclick=changeProfilePhoto;
     if(_ph)av.innerHTML='<img src="'+_ph+'" style="width:100%;height:100%;object-fit:cover">'+'<span class="pf-cam">📷</span>';
     else av.innerHTML='<span>'+(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase()+'</span><span class="pf-cam">📷</span>';
+    // Cadre : image ornementale de l'admin si dispo, sinon anneau animé CSS
+    var _fr=$('pf-frame');
+    if(_frame){ av.className=''; if(_fr){_fr.src=_frame;_fr.style.display='block';} }
+    else { av.className='vip-av vip-av-'+_vi; if(_fr)_fr.style.display='none'; }
   }
   var phone=(userData&&userData.phone)?String(userData.phone).trim():'';
   if($('pf-name')){var _cc=myCertColor();$('pf-name').innerHTML=(currentUser.displayName||'Utilisateur')+(_cc?certBadge(_cc,17):'');}
@@ -4111,7 +4120,7 @@ function refreshProfileUI(){
   if(_pl){var vv=currentVipLevel();var lv=vv.lv;var c=(VIP_PALETTE[vv.idx]||lv.color);
     _pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};
     _pl.innerHTML='<span style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,'+c+'26,'+c+'0d);color:'+c+';border:1.5px solid '+c+';border-radius:99px;padding:5px 14px 5px 8px;font-weight:800;font-size:13px;box-shadow:0 2px 8px '+c+'33">'
-      +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>'+vipLabel(vv.idx)+' '+lv.name+' <span style="opacity:.7">›</span></span>';
+      +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>'+vipFull(vv.idx,lv.name)+' <span style="opacity:.7">›</span></span>';
   }
   if($('pf-email'))$('pf-email').textContent=currentUser.email||'';
   if($('pf-phone'))$('pf-phone').textContent=phone?('📞 '+phone):'';

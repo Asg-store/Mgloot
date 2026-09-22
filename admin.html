@@ -4840,10 +4840,24 @@ function _collectVipTiers(){
       min:(i===0?0:(+r.querySelector('.vt-min').value||0)),
       discount:+r.querySelector('.vt-disc').value||0,
       qty:+r.querySelector('.vt-qty').value||0,
-      color:(r.querySelector('.vt-color').value||'').trim()
+      color:(r.querySelector('.vt-color').value||'').trim(),
+      frame:(r.querySelector('.vt-frame')?r.querySelector('.vt-frame').value||'':'').trim()
     };
   });
   return _vipTiers;
+}
+async function uploadVipFrame(i){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/png,image/*';
+  inp.onchange=async function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    toast('⏳ Envoi du cadre…');
+    try{
+      var url=await imgbbUpload(f);
+      _collectVipTiers();_vipTiers[i].frame=url;renderVipTiers();
+      toast('✅ Cadre ajouté (n\'oubliez pas d\'Enregistrer)');
+    }catch(e){toast('❌ '+(e.message||'Échec upload'),true);}
+  };
+  inp.click();
 }
 function renderVipTiers(){
   var el=document.getElementById('vip-tiers-list');if(!el)return;
@@ -4863,7 +4877,14 @@ function renderVipTiers(){
         : '<div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp vt-min" type="number" min="0" value="'+(t.min||'')+'"/></div>')
       +'<div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp vt-disc" type="number" min="0" max="90" value="'+(t.discount||'')+'"/></div>'
       +'<div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp vt-qty" type="number" min="0" value="'+(t.qty||'')+'"/></div>'
-      +'</div></div>';
+      +'</div>'
+      +'<div style="margin-top:8px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">🖼️ Cadre VIP (image PNG à trou central — ex: cadre doré)</label>'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +(t.frame?'<img src="'+t.frame+'" style="width:38px;height:38px;object-fit:contain;border-radius:6px;background:#0002">':'')
+      +'<input class="inp vt-frame" value="'+(t.frame||'')+'" placeholder="URL du cadre (ou upload →)" style="flex:1;font-size:12px"/>'
+      +'<button type="button" onclick="uploadVipFrame('+i+')" class="btn-add" style="padding:8px 10px;white-space:nowrap">📤 Upload</button>'
+      +'</div></div>'
+      +'</div>';
   }).join('');
 }
 function addVipTier(){
@@ -4886,7 +4907,7 @@ async function loadLoyalty(){
     var DEF_IC=['🥉','🥈','🥇','💎','🟢','🔵','🔴','🟣','⚪','⭐','👑'];
     var DEF_NM=['Bronze','Argent','Or','Diamant','Émeraude','Saphir','Rubis','Améthyste','Platine','Élite','Max'];
     var DEF_CO=['#cd7f32','#6aa0d8','#f0b429','#00d4ff','#2ecc71','#3b82f6','#ef4444','#a855f7','#cbd5e1','#f59e0b','#ff2d95'];
-    if(Array.isArray(c.vipTiers)&&c.vipTiers.length){ _vipTiers=c.vipTiers.map(function(x){return {name:x.name||'',icon:x.icon||'',min:+x.min||0,discount:+x.discount||0,qty:+x.qty||0,color:x.color||''};}); }
+    if(Array.isArray(c.vipTiers)&&c.vipTiers.length){ _vipTiers=c.vipTiers.map(function(x){return {name:x.name||'',icon:x.icon||'',min:+x.min||0,discount:+x.discount||0,qty:+x.qty||0,color:x.color||'',frame:x.frame||''};}); }
     else { // migre depuis les anciens 4 niveaux
       _vipTiers=[
         {name:'Bronze',icon:'🥉',min:0,discount:+lv.bronzeDisc||0,qty:+lv.bronzeQty||0,color:'#cd7f32'},
