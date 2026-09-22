@@ -1311,18 +1311,9 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
       <div class="form-grp"><label>Base du niveau VIP</label>
         <select class="inp inp-sel" id="loy-basis"><option value="points">Points accumulés</option><option value="spent">Argent dépensé (€) — recommandé VIP</option></select>
         <span class="hint" style="display:block;margin-top:4px">Pour le système VIP (VIP1→VIP4), choisissez <b>Argent dépensé</b> et mettez des seuils en € (ex : Argent 10, Or 50, Diamant 150).</span></div>
-      <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥈 VIP2 Argent</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-silver-min" type="number" min="0" placeholder="1000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-silver-disc" type="number" min="0" max="50" placeholder="3"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-silver-qty" type="number" min="0" placeholder="1"/></div></div>
-      </div>
-      <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🥇 VIP3 Or</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-gold-min" type="number" min="0" placeholder="5000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-gold-disc" type="number" min="0" max="50" placeholder="5"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-gold-qty" type="number" min="0" placeholder="2"/></div></div>
-      </div>
-      <div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">💎 VIP4 Diamant</div>
-        <div class="f-row" style="gap:8px"><div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp" id="loy-diamond-min" type="number" min="0" placeholder="15000"/></div><div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp" id="loy-diamond-disc" type="number" min="0" max="50" placeholder="10"/></div><div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp" id="loy-diamond-qty" type="number" min="0" placeholder="3"/></div></div>
-      </div>
+      <div style="font-weight:700;font-size:13px;margin:2px 0 8px">👑 Niveaux VIP (VIP1 → VIP Max)</div>
+      <div id="vip-tiers-list"></div>
+      <button class="btn-add" onclick="addVipTier()" style="width:100%;padding:10px;margin-bottom:12px">+ Ajouter un niveau VIP</button>
       <div class="form-grp"><label>🔁 Remise à zéro des coupons</label>
         <select class="inp inp-sel" id="loy-reset"><option value="never">Jamais</option><option value="monthly">Chaque mois</option><option value="quarterly">Tous les 3 mois</option><option value="yearly">Chaque année</option></select>
         <span class="hint" style="display:block;margin-top:4px">Les coupons ×N du client se rechargent selon cette période.</span></div>
@@ -4839,6 +4830,51 @@ async function saveAdSettings(){
 }
 
 /* ── Programme de fidélité (admin) ── */
+var _vipTiers=[];
+function _collectVipTiers(){
+  var list=document.querySelectorAll('#vip-tiers-list .vip-tier-row');
+  _vipTiers=Array.prototype.map.call(list,function(r,i){
+    return {
+      name:(r.querySelector('.vt-name').value||'').trim(),
+      icon:(r.querySelector('.vt-icon').value||'').trim(),
+      min:(i===0?0:(+r.querySelector('.vt-min').value||0)),
+      discount:+r.querySelector('.vt-disc').value||0,
+      qty:+r.querySelector('.vt-qty').value||0,
+      color:(r.querySelector('.vt-color').value||'').trim()
+    };
+  });
+  return _vipTiers;
+}
+function renderVipTiers(){
+  var el=document.getElementById('vip-tiers-list');if(!el)return;
+  el.innerHTML=_vipTiers.map(function(t,i){
+    var c=t.color||(window._VIP_DEF?window._VIP_DEF.co[i]:'#888')||'#888';
+    return '<div class="vip-tier-row" style="border:1px solid '+c+';border-radius:12px;padding:12px;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      +'<span style="font-weight:800;font-size:13px;color:'+c+'">VIP'+(i+1)+'</span>'
+      +'<input class="inp vt-icon" value="'+(t.icon||'')+'" style="width:52px;text-align:center" maxlength="4"/>'
+      +'<input class="inp vt-name" value="'+(t.name||'')+'" placeholder="Nom" style="flex:1"/>'
+      +'<input class="inp vt-color" value="'+c+'" style="width:82px" placeholder="#couleur"/>'
+      +(i>0?'<button onclick="removeVipTier('+i+')" style="background:#ff3b5c22;color:#ff3b5c;border:none;border-radius:8px;width:30px;height:30px;font-size:16px;cursor:pointer">×</button>':'<span style="width:30px"></span>')
+      +'</div>'
+      +'<div class="f-row" style="gap:8px">'
+      +(i===0
+        ? '<div class="form-grp" style="flex:1"><label>Seuil</label><input class="inp" value="0" disabled style="opacity:.5"/></div>'
+        : '<div class="form-grp" style="flex:1"><label>Seuil EXP</label><input class="inp vt-min" type="number" min="0" value="'+(t.min||'')+'"/></div>')
+      +'<div class="form-grp" style="flex:1"><label>Réduction %</label><input class="inp vt-disc" type="number" min="0" max="90" value="'+(t.discount||'')+'"/></div>'
+      +'<div class="form-grp" style="flex:1"><label>Coupons ×N</label><input class="inp vt-qty" type="number" min="0" value="'+(t.qty||'')+'"/></div>'
+      +'</div></div>';
+  }).join('');
+}
+function addVipTier(){
+  _collectVipTiers();
+  if(_vipTiers.length>=12){toast('Maximum 12 niveaux',true);return;}
+  var i=_vipTiers.length;var D=window._VIP_DEF||{ic:[],nm:[],co:[]};
+  var last=_vipTiers[_vipTiers.length-1]||{min:0};
+  _vipTiers.push({name:D.nm[i]||('VIP'+(i+1)),icon:D.ic[i]||'👑',min:(+last.min||0)+10000,discount:0,qty:0,color:D.co[i]||'#ff2d95'});
+  renderVipTiers();
+}
+function removeVipTier(i){_collectVipTiers();_vipTiers.splice(i,1);renderVipTiers();}
 async function loadLoyalty(){
   try{
     var d=await db.collection('config').doc('shop').get();
@@ -4846,9 +4882,21 @@ async function loadLoyalty(){
     if(document.getElementById('loy-on'))document.getElementById('loy-on').checked=!!c.loyaltyEnabled;
     if(document.getElementById('loy-basis'))document.getElementById('loy-basis').value=c.loyaltyBasis||'points';
     var set=function(id,v){var e=document.getElementById(id);if(e)e.value=(v!=null?v:'');};
-    set('loy-silver-min',lv.silverMin);set('loy-silver-disc',lv.silverDisc);set('loy-silver-qty',lv.silverQty);
-    set('loy-gold-min',lv.goldMin);set('loy-gold-disc',lv.goldDisc);set('loy-gold-qty',lv.goldQty);
-    set('loy-diamond-min',lv.diamondMin);set('loy-diamond-disc',lv.diamondDisc);set('loy-diamond-qty',lv.diamondQty);
+    // 👑 Niveaux VIP dynamiques
+    var DEF_IC=['🥉','🥈','🥇','💎','🟢','🔵','🔴','🟣','⚪','⭐','👑'];
+    var DEF_NM=['Bronze','Argent','Or','Diamant','Émeraude','Saphir','Rubis','Améthyste','Platine','Élite','Max'];
+    var DEF_CO=['#cd7f32','#6aa0d8','#f0b429','#00d4ff','#2ecc71','#3b82f6','#ef4444','#a855f7','#cbd5e1','#f59e0b','#ff2d95'];
+    if(Array.isArray(c.vipTiers)&&c.vipTiers.length){ _vipTiers=c.vipTiers.map(function(x){return {name:x.name||'',icon:x.icon||'',min:+x.min||0,discount:+x.discount||0,qty:+x.qty||0,color:x.color||''};}); }
+    else { // migre depuis les anciens 4 niveaux
+      _vipTiers=[
+        {name:'Bronze',icon:'🥉',min:0,discount:+lv.bronzeDisc||0,qty:+lv.bronzeQty||0,color:'#cd7f32'},
+        {name:'Argent',icon:'🥈',min:+lv.silverMin||1000,discount:+lv.silverDisc||0,qty:+lv.silverQty||0,color:'#6aa0d8'},
+        {name:'Or',icon:'🥇',min:+lv.goldMin||5000,discount:+lv.goldDisc||0,qty:+lv.goldQty||0,color:'#f0b429'},
+        {name:'Diamant',icon:'💎',min:+lv.diamondMin||15000,discount:+lv.diamondDisc||0,qty:+lv.diamondQty||0,color:'#00d4ff'}
+      ];
+    }
+    window._VIP_DEF={ic:DEF_IC,nm:DEF_NM,co:DEF_CO};
+    renderVipTiers();
     if(document.getElementById('loy-reset'))document.getElementById('loy-reset').value=c.loyaltyReset||'never';
     if(document.getElementById('loy-exp-amt'))document.getElementById('loy-exp-amt').value=(c.vipExpAmt!=null?c.vipExpAmt:'');
     if(document.getElementById('loy-exp-cur'))document.getElementById('loy-exp-cur').value=c.vipExpCur||'xof';
@@ -4868,7 +4916,7 @@ async function setBannerVisible(on){
   }catch(e){toast('❌ '+e.message,true);}
 }
 async function saveLoyalty(){
-  var g=function(id){return +document.getElementById(id).value||0;};
+  var g=function(id){var e=document.getElementById(id);return e?(+e.value||0):0;};
   var _R={eur:1,usd:1.16,xof:655.957};
   var amt=g('loy-exp-amt')||500, cur=(document.getElementById('loy-exp-cur')?document.getElementById('loy-exp-cur').value:'xof'), gain=g('loy-exp-gain')||20;
   var amtEur=amt/(_R[cur]||1);                     // montant converti en €
@@ -4879,11 +4927,7 @@ async function saveLoyalty(){
       loyaltyBasis:document.getElementById('loy-basis').value,
       loyaltyReset:document.getElementById('loy-reset')?document.getElementById('loy-reset').value:'never',
       vipExpAmt:amt,vipExpCur:cur,vipExpGain:gain,vipExpPerEur:Math.round(perEur*100)/100,
-      loyaltyLevels:{
-        silverMin:g('loy-silver-min'),silverDisc:g('loy-silver-disc'),silverQty:g('loy-silver-qty'),
-        goldMin:g('loy-gold-min'),goldDisc:g('loy-gold-disc'),goldQty:g('loy-gold-qty'),
-        diamondMin:g('loy-diamond-min'),diamondDisc:g('loy-diamond-disc'),diamondQty:g('loy-diamond-qty')
-      }
+      vipTiers:_collectVipTiers()
     },{merge:true});
     toast('✓ Fidélité enregistrée');
   }catch(e){toast('❌ '+e.message,true);}

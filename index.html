@@ -2864,10 +2864,25 @@ const LEVELS_DEFAULT=[
 ];
 function loyaltyOn(){return !!(shopConfig&&shopConfig.loyaltyEnabled);}
 function loyaltyBasis(){return (shopConfig&&shopConfig.loyaltyBasis)||'points';} // 'points' ou 'spent'
+var VIP_ICONS=['🥉','🥈','🥇','💎','🟢','🔵','🔴','🟣','⚪','⭐','👑'];
+var VIP_NAMES=['Bronze','Argent','Or','Diamant','Émeraude','Saphir','Rubis','Améthyste','Platine','Élite','Max'];
+var VIP_PALETTE=['#cd7f32','#6aa0d8','#f0b429','#00d4ff','#2ecc71','#3b82f6','#ef4444','#a855f7','#cbd5e1','#f59e0b','#ff2d95'];
 function LEVELS_CFG(){
   var c=(shopConfig&&shopConfig.loyaltyLevels)||{};
+  var t=(shopConfig&&shopConfig.vipTiers);
+  if(Array.isArray(t)&&t.length){
+    return t.map(function(x,i){return {
+      name:x.name||VIP_NAMES[i]||('VIP'+(i+1)),
+      icon:x.icon||VIP_ICONS[i]||'👑',
+      min:(i===0?0:(+x.min||0)),
+      discount:+x.discount||0,
+      qty:+x.qty||0,
+      color:x.color||VIP_PALETTE[i]||'#888'
+    };});
+  }
+  // Repli : anciens 4 niveaux (compatibilité)
   return [
-    {name:'Bronze',icon:'🥉',min:0,discount:+c.bronzeDisc||0,qty:0,color:'#cd7f32'},
+    {name:'Bronze',icon:'🥉',min:0,discount:+c.bronzeDisc||0,qty:+c.bronzeQty||0,color:'#cd7f32'},
     {name:'Argent',icon:'🥈',min:(c.silverMin!=null?+c.silverMin:500),discount:+c.silverDisc||0,qty:+c.silverQty||0,color:'#9fb0c0'},
     {name:'Or',icon:'🥇',min:(c.goldMin!=null?+c.goldMin:2000),discount:+c.goldDisc||0,qty:+c.goldQty||0,color:'#ffd700'},
     {name:'Diamant',icon:'💎',min:(c.diamondMin!=null?+c.diamondMin:5000),discount:+c.diamondDisc||0,qty:+c.diamondQty||0,color:'#00d4ff'}
@@ -2919,6 +2934,30 @@ function vipResetKey(){
   if(mode==='yearly')return ''+d.getFullYear();
   return 'all';
 }
+/* ═══════════ 🔵 CERTIFICAT VIP (badge vérifié, dès VIP6) ═══════════ */
+function vipCertColor(idx){
+  // idx : 0=VIP1 … 5=VIP6, 6=VIP7, 7=VIP8, 8=VIP9, 9=VIP10, 10=VIP Max
+  var m={5:'#c0c0c0',6:'#9aa0a6',7:'#d9c7a3',8:'#c4b5fd',9:'#a3e635',10:'#1d9bf6'};
+  return m[idx]||null; // Argent, Gris, Beige, Lavande, Citron vert, Bleu
+}
+function certBadge(color,size){
+  if(!color)return '';size=size||15;
+  return '<svg viewBox="0 0 24 24" width="'+size+'" height="'+size+'" style="vertical-align:middle;display:inline-block;margin-left:3px"><path fill="'+color+'" d="M23 12l-2.44-2.78.34-3.68-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.72l-3.61.81.34 3.68L1 12l2.44 2.78-.34 3.69 3.61.82L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.22 3.61-.82-.34-3.68z"/><path fill="#fff" d="M10.09 16.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.34-5.36 1.48 1.48z"/></svg>';
+}
+function myCertColor(){try{return vipCertColor(currentVipLevel().idx);}catch(e){return null;}}
+// Bloc « profil vendeur » d'une annonce (photo + nom + certificat)
+function sellerBlockHtml(a){
+  var official=(a.isOfficial===true);
+  var name=official?((shopConfig&&shopConfig.shopName)||'MGLOOT'):(a.userName||'Vendeur');
+  var color=official?'#1d9bf6':vipCertColor(a.sellerVip!=null?a.sellerVip:-1);
+  var photo=official?((shopConfig&&shopConfig.logoUrl)||''):(a.sellerPhoto||'');
+  var av=photo?('<img src="'+photo+'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">')
+    :('<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">'+((name[0]||'?').toUpperCase())+'</div>');
+  return '<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:16px">'
+    +av
+    +'<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px;display:flex;align-items:center">'+name+certBadge(color,16)+'</div>'
+    +'<div style="font-size:11px;color:var(--text3)">'+(official?'✅ Vendeur officiel MgLoot':'Vendeur')+'</div></div></div>';
+}
 function currentVipLevel(){
   var L=LEVELS_CFG();var RATE=vipRate();var exp=(+((userData&&userData.totalSpent)||0))*RATE;
   var lv=L[0],idx=0;for(var i=0;i<L.length;i++){if(exp>=L[i].min){lv=L[i];idx=i;}}
@@ -2931,7 +2970,7 @@ function vipCouponsData(){
   var list=(u.vipCoupons||[]).filter(function(c){return c&&!c.used;}); // coupons non utilisés (n'expirent jamais)
   return {key:key,claimed:claimed,list:list};
 }
-function vipColorIdx(i){return ['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0'][i]||'#ff3b5c';}
+function vipColorIdx(i){return VIP_PALETTE[i]||'#ff3b5c';}
 async function claimVipCoupon(li){
   if(!currentUser){openAuthModal();return;}
   var v=currentVipLevel();var L=v.L;
@@ -2966,7 +3005,7 @@ function vipCouponsHtml(){
   var reset=({never:'',monthly:'chaque mois',quarterly:'tous les 3 mois',yearly:'chaque année'})[(shopConfig&&shopConfig.loyaltyReset)||'never'];
   var html='<div style="font-size:12px;color:var(--text3);font-weight:800;letter-spacing:.5px;margin:18px 0 6px">🎟️ MES COUPONS'+(reset?(' · renouvelés '+reset):'')+'</div>';
   var any=false,blocks='';
-  for(var li=1;li<=v.idx;li++){            // VIP2 (index 1) → niveau actuel ; JAMAIS VIP1
+  for(var li=0;li<=v.idx;li++){            // TOUS les niveaux débloqués, VIP1 inclus (si l'admin lui donne un coupon)
     var lv=L[li];var qty=+lv.qty||0,pct=+lv.discount||0;
     if(qty<=0||pct<=0)continue;
     any=true;var got=+(cd.claimed[li]||0);var c=vipColorIdx(li);
@@ -2985,7 +3024,7 @@ function vipCouponsHtml(){
     }
     blocks+='</div>';
   }
-  if(!any)return html+'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:12px;color:var(--text3);text-align:center">Atteignez le niveau VIP2 pour débloquer vos premiers coupons de réduction. 🔓</div>';
+  if(!any)return html+'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;font-size:12px;color:var(--text3);text-align:center">Aucun coupon disponible pour le moment. 🔓</div>';
   html+=blocks;
   var avail=cd.list.length;
   if(avail>0)html+='<div style="font-size:11px;color:#00c853;margin-top:8px;font-weight:700">✅ '+avail+' coupon'+(avail>1?'s':'')+' prêt'+(avail>1?'s':'')+' à utiliser au paiement</div>';
@@ -2994,7 +3033,7 @@ function vipCouponsHtml(){
 function renderVipScreen(){
   var el=document.getElementById('vip-body');if(!el)return;
   var L=LEVELS_CFG();
-  var VIP_COLORS=['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0']; // bronze, argent-bleu, or, diamant-violet…
+  var VIP_COLORS=VIP_PALETTE;
   var RATE=vipRate();   // EXP gagnés par € dépensé (géré par l'admin)
   var spent=+((userData&&userData.totalSpent)||0);
   var exp=spent*RATE;   // EXP du client
@@ -4036,9 +4075,9 @@ function refreshProfileUI(){
     else av.textContent=(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase();
   }
   var phone=(userData&&userData.phone)?String(userData.phone).trim():'';
-  if($('pf-name'))$('pf-name').textContent=currentUser.displayName||'Utilisateur';
+  if($('pf-name')){var _cc=myCertColor();$('pf-name').innerHTML=(currentUser.displayName||'Utilisateur')+(_cc?certBadge(_cc,17):'');}
   var _pl=$('pf-level');
-  if(_pl){var vv=currentVipLevel();var lv=vv.lv;var c=(['#cd7f32','#6aa0d8','#f0b429','#a855f7','#ff5a5a','#00c8a0'][vv.idx]||lv.color);
+  if(_pl){var vv=currentVipLevel();var lv=vv.lv;var c=(VIP_PALETTE[vv.idx]||lv.color);
     _pl.style.display='block';_pl.style.cursor='pointer';_pl.onclick=function(){openScreen('vip');};
     _pl.innerHTML='<span style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,'+c+'26,'+c+'0d);color:'+c+';border:1.5px solid '+c+';border-radius:99px;padding:5px 14px 5px 8px;font-weight:800;font-size:13px;box-shadow:0 2px 8px '+c+'33">'
       +'<span style="font-size:20px;line-height:1">'+lv.icon+'</span>VIP'+(vv.idx+1)+' '+lv.name+' <span style="opacity:.7">›</span></span>';
@@ -6346,7 +6385,7 @@ function openAccount(id){
     <div class="mk-price" style="font-size:24px;margin-bottom:14px">${fmtMoney((a.price||0))}</div>
     <div class="detail-spec">${specs.join('')}</div>
     ${a.desc?`<p style="font-size:13px;line-height:1.6;color:var(--text2);margin-bottom:16px">${a.desc.replace(/</g,'&lt;')}</p>`:''}
-    <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Vendu par ${a.userName||'Utilisateur'}</div>
+    ${sellerBlockHtml(a)}
     ${actionHtml}
     ${(!currentUser||a.userId!==currentUser.uid)?`<button class="btn-ghost-link" style="display:block;width:100%;margin-top:10px;color:#ff6b6b" onclick="openReport('${a.id}')">🚩 Signaler cette annonce</button>`:''}
   `;
@@ -8526,6 +8565,8 @@ async function submitAccount(){
   try{
     const data={
       userId:currentUser.uid,userName:currentUser.displayName||currentUser.email.split('@')[0],userEmail:currentUser.email||'',
+      sellerVip:(function(){try{return currentVipLevel().idx;}catch(e){return 0;}})(),
+      sellerPhoto:(currentUser.photoURL||(userData&&userData.photoURL)||''),
       game:document.getElementById('sell-game').value,title,price,priceCur:priceCur,priceRaw:priceRaw,
       level:+document.getElementById('sell-level').value||null,rank:document.getElementById('sell-rank').value.trim()||'',
       desc:document.getElementById('sell-desc').value.trim()||'',contact:document.getElementById('sell-contact').value.trim()||'',
@@ -9133,7 +9174,7 @@ function subscribeChat(){
           // 🚫 On n'affiche pas les messages vides (média non envoyé / texte vide)
           if(!txt&&!hasMedia)return'';
           const side=(m.from==='admin'||m.from==='bot')?'admin':'user';
-          const tag=m.from==='bot'?'<b style="display:block;font-size:10px;opacity:.7;margin-bottom:2px">🤖 Assistant MgLoot</b>':(m.from==='admin'?'<b style="display:block;font-size:10px;opacity:.7;margin-bottom:2px">👨‍💼 Admin</b>':'');
+          const tag=m.from==='bot'?'<b style="display:block;font-size:10px;opacity:.7;margin-bottom:2px">🤖 Assistant MgLoot</b>':(m.from==='admin'?'<b style="display:flex;align-items:center;font-size:10px;opacity:.85;margin-bottom:2px">👨‍💼 MGLOOT'+certBadge('#1d9bf6',12)+'</b>':'');
           let body=txt?`<span class="msg-tx" dir="auto">${fmtChatText(txt)}</span>`:'';
           if(hasMedia){const i=mIdx++;body+=chatMediaHTML(m.media,'chat-c',i);}
           // Le client peut supprimer ses propres messages
