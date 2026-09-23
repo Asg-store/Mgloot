@@ -5189,24 +5189,30 @@ function updateAuthUI(user){
     const photoURL=getBestPhoto(user);
     const displayName=user.displayName||(user.email?user.email.split('@')[0]:'Utilisateur');
     const ini=getInitials(displayName);
+    const _vf=(function(){try{return currentVipLevel().lv.frame||'';}catch(e){return '';}})();
+    const _frameTop=_vf?`<img src="${_vf}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:170%;height:170%;pointer-events:none;z-index:3">`:'';
 
     // ── Topbar avatar ──
     avatarBtn.style.background='transparent';
-    avatarBtn.style.border='2px solid var(--accent)';
+    avatarBtn.style.overflow='visible';
+    avatarBtn.style.border=_vf?'none':'2px solid var(--accent)';
     avatarBtn.innerHTML=`
       <img src="${photoURL}" alt="avatar"
-        style="width:100%;height:100%;object-fit:cover;border-radius:8px"
-        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">`;
+        style="width:100%;height:100%;object-fit:cover;border-radius:8px;position:relative;z-index:1"
+        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">${_frameTop}`;
 
     // ── Sidebar ──
     sidebarGuest.style.display='none';
     sidebarLogged.style.display='block';
     document.getElementById('sidebar-name').textContent=displayName;
     document.getElementById('sidebar-email').textContent=user.email||'';
-    document.getElementById('sidebar-avatar').innerHTML=`
+    var _sbav=document.getElementById('sidebar-avatar');
+    _sbav.style.overflow='visible';_sbav.style.position='relative';
+    _sbav.innerHTML=`
       <img src="${photoURL}" alt="av"
-        style="width:100%;height:100%;object-fit:cover;border-radius:10px"
-        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">`;
+        style="width:100%;height:100%;object-fit:cover;border-radius:10px;position:relative;z-index:1"
+        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">`
+      +(_vf?`<img src="${_vf}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:168%;height:168%;pointer-events:none;z-index:3">`:'');
   } else {
     // ── Visiteur ──
     avatarBtn.style.background='var(--bg3)';
@@ -5655,6 +5661,7 @@ function watchAccountStatus(uid){
     const data=d.data()||{};
     userData=data;                         // état points / portefeuille global
     _userLoaded=true;                      // ✅ vraies données reçues
+    try{if(currentUser)updateAuthUI(currentUser);}catch(e){}  // 👑 rafraîchit le cadre VIP (header + menu)
     checkMissionReset&&checkMissionReset(); // réinit missions honorée seulement maintenant
     refreshRewardsUI();                    // met à jour les soldes affichés
     try{if(document.getElementById('screen-profile').classList.contains('open'))refreshProfileUI();}catch(_){}
