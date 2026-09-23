@@ -2973,11 +2973,14 @@ function certBadge(color,size){
 }
 function myCertColor(){try{return vipCertColor(currentVipLevel().idx);}catch(e){return null;}}
 // Avatar du client (photo de profil) encadré de la couleur du niveau — remplace la médaille emoji
-function vipAvatarHtml(color){
+function vipAvatarHtml(color,frame){
   var photo=(currentUser&&currentUser.photoURL)||(userData&&userData.photoURL)||'';
   var nm=(currentUser&&(currentUser.displayName||currentUser.email))||'?';
-  if(photo)return '<img src="'+photo+'" alt="" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2.5px solid '+color+';flex-shrink:0">';
-  return '<div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,'+color+',#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;border:2.5px solid '+color+';flex-shrink:0">'+((nm[0]||'?').toUpperCase())+'</div>';
+  var inner=photo?('<img src="'+photo+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">')
+    :('<div style="width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,'+color+',#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px">'+((nm[0]||'?').toUpperCase())+'</div>');
+  var ring=frame?'':('border:2.5px solid '+color+';');
+  var fr=frame?('<img src="'+frame+'" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160%;height:160%;pointer-events:none;z-index:2">'):'';
+  return '<div style="position:relative;width:52px;height:52px;flex-shrink:0"><div style="width:52px;height:52px;border-radius:50%;overflow:hidden;'+ring+'">'+inner+'</div>'+fr+'</div>';
 }
 // Bloc « profil vendeur » d'une annonce (photo + nom + certificat)
 function sellerBlockHtml(a){
@@ -3094,7 +3097,7 @@ function renderVipScreen(){
     return '<div style="min-width:100%;scroll-snap-align:center;box-sizing:border-box">'
       +'<div style="background:linear-gradient(135deg,'+c+'30,'+c+'0d);border:1.5px solid '+c+';border-radius:18px;padding:16px 18px">'
       +'<div style="display:flex;align-items:center;gap:10px">'
-      +vipAvatarHtml(c)
+      +vipAvatarHtml(c,x.frame)
       +'<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:23px;color:'+c+';letter-spacing:.5px">'+vipLabel(i)+' <span style="font-size:12px;color:var(--text2);font-weight:700">'+(String(x.name||'').toLowerCase()==='max'?'':x.name)+'</span></div></div>'
       +'<span style="font-size:11px;font-weight:800;color:#fff;background:'+c+';padding:3px 11px;border-radius:20px;white-space:nowrap">'+badge+'</span></div>'
       +'<div style="font-size:15px;font-weight:800;color:'+c+';margin-top:12px">'+Math.round(curExp)+' <span style="font-size:12px;color:var(--text3);font-weight:600">/ '+Math.round(target)+' EXP</span></div>'
