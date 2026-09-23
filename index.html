@@ -5194,12 +5194,13 @@ function updateAuthUI(user){
 
     // ── Topbar avatar ──
     avatarBtn.style.background='transparent';
+    avatarBtn.style.position='relative';
     avatarBtn.style.overflow='visible';
     avatarBtn.style.border=_vf?'none':'2px solid var(--accent)';
     avatarBtn.innerHTML=`
       <img src="${photoURL}" alt="avatar"
         style="width:100%;height:100%;object-fit:cover;border-radius:8px;position:relative;z-index:1"
-        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">${_frameTop}`;
+        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">${_vf?`<img src="${_vf}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:152%;height:152%;max-width:152%;pointer-events:none;z-index:3">`:''}`;
 
     // ── Sidebar ──
     sidebarGuest.style.display='none';
