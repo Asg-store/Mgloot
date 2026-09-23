@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════
-//  LootR — /api/reset-password  (Fonction serverless Vercel, Node.js)
+//  MgLoot — /api/reset-password  (Fonction serverless Vercel, Node.js)
 //
 //  Réinitialisation du mot de passe client avec un CODE À 4 CHIFFRES
 //  envoyé par e-mail.
@@ -16,8 +16,8 @@
 //    GMAIL_APP_PASSWORD       = "mot de passe d'application" Google (16 caractères)
 //                               → Google → Sécurité → Validation en 2 étapes →
 //                                 Mots de passe des applications
-//    MAIL_FROM (optionnel)    = expéditeur affiché, ex : "LootR <abgstored@gmail.com>"
-//                               (par défaut : "LootR <GMAIL_USER>")
+//    MAIL_FROM (optionnel)    = expéditeur affiché, ex : "MgLoot <abgstored@gmail.com>"
+//                               (par défaut : "MgLoot <GMAIL_USER>")
 // ════════════════════════════════════════════════════════════════
 const admin  = require('firebase-admin');
 const crypto = require('crypto');
@@ -77,7 +77,7 @@ function emailHtml(code, name) {
           </p>
         </td></tr>
       </table>
-      <div style="font-size:11px;color:#5c6c8a;margin-top:14px;font-family:Arial,Helvetica,sans-serif">© LootR · Mali</div>
+      <div style="font-size:11px;color:#5c6c8a;margin-top:14px;font-family:Arial,Helvetica,sans-serif">© MgLoot · Mali</div>
     </td></tr>
   </table></body></html>`;
 }
@@ -100,12 +100,12 @@ function getMailer() {
 
 async function sendMail(to, code, name) {
   const user = process.env.GMAIL_USER;
-  const from = process.env.MAIL_FROM || ('LootR <' + user + '>');
+  const from = process.env.MAIL_FROM || ('MgLoot <' + user + '>');
   try {
     await getMailer().sendMail({
       from,
       to,
-      subject: `${code} — votre code de vérification LootR`,
+      subject: `${code} — votre code de vérification MgLoot`,
       html: emailHtml(code, name)
     });
   } catch (e) {
@@ -132,6 +132,37 @@ module.exports = async (req, res) => {
     getApp();
     const db  = admin.firestore();
     const ref = db.collection('passwordResets').doc(docId(email));
+    const sref = db.collection('signupCodes').doc(docId(email));
+
+    // ─────────── INSCRIPTION : ENVOI DU CODE (email peut ne pas encore exister) ───────────
+    if (action === 'signup-send') {
+      // Si un compte existe déjà avec cet email → on refuse (il doit se connecter)
+      try { await admin.auth().getUserByEmail(email); return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail. Connectez-vous.' }); }
+      catch (e) { /* pas de compte = OK pour inscription */ }
+      const prev = await sref.get();
+      if (prev.exists) {
+        const last = (prev.data().sentAt || 0);
+        const wait = RESEND_WAIT_S * 1000 - (Date.now() - last);
+        if (wait > 0) return res.status(429).json({ error: 'Patientez ' + Math.ceil(wait / 1000) + 's avant de redemander un code.' });
+      }
+      const code = gen4();
+      await sendMail(email, code, (p.name || ''));
+      await sref.set({ email, codeHash: hash(code, email), expiresAt: Date.now() + CODE_TTL_MIN * 60 * 1000, attempts: 0, verified: false, sentAt: Date.now() });
+      return res.status(200).json({ ok: true, sent: true, ttl: CODE_TTL_MIN });
+    }
+    // ─────────── INSCRIPTION : VÉRIFICATION DU CODE ───────────
+    if (action === 'signup-verify') {
+      const c = String(p.code || '').replace(/\D/g, '');
+      if (c.length !== 4) return res.status(400).json({ error: 'Le code doit contenir 4 chiffres.' });
+      const snap = await sref.get();
+      if (!snap.exists) return res.status(400).json({ error: 'Aucun code en cours. Demandez un nouveau code.' });
+      const d = snap.data();
+      if (Date.now() > (d.expiresAt || 0)) { await sref.delete().catch(() => {}); return res.status(400).json({ error: 'Code expiré. Demandez un nouveau code.' }); }
+      if ((d.attempts || 0) >= MAX_ATTEMPTS) { await sref.delete().catch(() => {}); return res.status(429).json({ error: 'Trop de tentatives. Demandez un nouveau code.' }); }
+      if (d.codeHash !== hash(c, email)) { await sref.set({ attempts: (d.attempts || 0) + 1 }, { merge: true }); return res.status(400).json({ error: 'Code incorrect.' }); }
+      await sref.set({ verified: true }, { merge: true });
+      return res.status(200).json({ ok: true, verified: true });
+    }
 
     // ─────────── ENVOI DU CODE ───────────
     if (action === 'send') {
