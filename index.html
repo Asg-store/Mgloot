@@ -5580,6 +5580,61 @@ async function confirmResetCode(){
 }
 
 // Email auth
+/* 📧 Vérification email à l'inscription (code à 4 chiffres) */
+var _pendingSignup=null;
+function showSignupCodeScreen(email){
+  var old=document.getElementById('su-code-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='su-code-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:22px';
+  ov.innerHTML='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px 20px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.4)">'
+    +'<div style="font-size:42px">📧</div>'
+    +'<div style="font-weight:800;font-size:18px;margin-top:6px">Vérifiez votre e-mail</div>'
+    +'<div style="font-size:12.5px;color:var(--text2);margin-top:6px;line-height:1.5">Un code à 4 chiffres a été envoyé à<br><b>'+email+'</b></div>'
+    +'<input id="su-code" inputmode="numeric" maxlength="4" placeholder="0000" style="width:160px;text-align:center;letter-spacing:10px;font-size:26px;font-weight:800;margin:16px auto 6px;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);display:block"/>'
+    +'<div id="su-err" style="color:#ff3b5c;font-size:12px;min-height:16px;margin-bottom:6px"></div>'
+    +'<button id="su-verify-btn" onclick="verifySignupCode()" style="width:100%;padding:14px;border:none;border-radius:12px;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(135deg,#00b0ff,#7c3aed);cursor:pointer">Vérifier et créer mon compte</button>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px">'
+    +'<span onclick="closeSignupCode()" style="color:var(--text3);cursor:pointer">← Annuler</span>'
+    +'<span onclick="resendSignupCode()" style="color:var(--accent);cursor:pointer;font-weight:700">Renvoyer le code</span></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){var i=document.getElementById('su-code');if(i)i.focus();},100);
+}
+function closeSignupCode(){var e=document.getElementById('su-code-ov');if(e)e.remove();}
+async function resendSignupCode(){
+  if(!_pendingSignup)return;
+  var er=document.getElementById('su-err');if(er)er.textContent='';
+  try{
+    var r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-send',email:_pendingSignup.email,name:_pendingSignup.name})});
+    var d=await r.json().catch(function(){return {};});
+    if(d&&d.ok)showToast('📧 Nouveau code envoyé');else if(er)er.textContent=(d&&d.error)||'Échec de l\'envoi.';
+  }catch(e){if(er)er.textContent='Erreur réseau.';}
+}
+async function verifySignupCode(){
+  if(!_pendingSignup)return;
+  var code=(document.getElementById('su-code').value||'').replace(/\D/g,'');
+  var er=document.getElementById('su-err');if(er)er.textContent='';
+  if(code.length!==4){if(er)er.textContent='Entrez le code à 4 chiffres.';return;}
+  var btn=document.getElementById('su-verify-btn');if(btn){btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> Vérification…';}
+  try{
+    var r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-verify',email:_pendingSignup.email,code:code})});
+    var d=await r.json().catch(function(){return {};});
+    if(!(d&&d.verified)){if(er)er.textContent=(d&&d.error)||'Code incorrect.';if(btn){btn.disabled=false;btn.textContent='Vérifier et créer mon compte';}return;}
+    // ✅ Code validé → on crée le compte pour de vrai
+    var cred=await auth.createUserWithEmailAndPassword(_pendingSignup.email,_pendingSignup.password);
+    await cred.user.updateProfile({displayName:_pendingSignup.name});
+    await cred.user.reload();
+    if(_pendingSignup.phone){try{await db.collection('users').doc(cred.user.uid).set({phone:_pendingSignup.phone,emailVerified:true},{merge:true});}catch(e){}}
+    await saveUserToFirestore(cred.user);
+    updateAuthUI(cred.user);
+    var nm=_pendingSignup.name;_pendingSignup=null;
+    closeSignupCode();closeAuthModal();
+    showToast('🎉 Bienvenue, '+nm+'! Email vérifié ✅');
+  }catch(e){
+    if(er)er.textContent=(typeof authErrorMsg==='function'?authErrorMsg(e.code):'')||e.message||'Erreur';
+    if(btn){btn.disabled=false;btn.textContent='Vérifier et créer mon compte';}
+  }
+}
 async function doEmailAuth(){
   clearAuthError();
   const email=document.getElementById('auth-email').value.trim();
@@ -5591,20 +5646,18 @@ async function doEmailAuth(){
   if(authMode==='register'){
     const name=document.getElementById('auth-name').value.trim();
     const confirm=document.getElementById('auth-confirm').value;
+    const phone=(document.getElementById('auth-phone')?document.getElementById('auth-phone').value.trim():'');
     if(!name){showAuthError('Veuillez entrer votre nom.');return;}
     if(password!==confirm){showAuthError('Les mots de passe ne correspondent pas.');return;}
     setAuthLoading(true);
     try{
-      const cred=await auth.createUserWithEmailAndPassword(email,password);
-      await cred.user.updateProfile({displayName:name});
-      await cred.user.reload(); // forcer la mise à jour du profil
-      await saveUserToFirestore(cred.user);
-      updateAuthUI(cred.user);
-      closeAuthModal();
-      showToast('🎉 Bienvenue, '+name+'!');
-    }catch(e){
-      showAuthError(authErrorMsg(e.code));
-    }finally{setAuthLoading(false);}
+      const r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-send',email:email,name:name})});
+      const d=await r.json().catch(function(){return {};});
+      if(!(d&&d.ok)){showAuthError((d&&d.error)||'Envoi du code impossible.');setAuthLoading(false);return;}
+      _pendingSignup={name:name,email:email,password:password,phone:phone};
+      setAuthLoading(false);
+      showSignupCodeScreen(email);
+    }catch(e){showAuthError('Erreur réseau — réessayez.');setAuthLoading(false);}
   } else {
     setAuthLoading(true);
     try{
