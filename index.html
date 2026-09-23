@@ -887,6 +887,21 @@ footer{
 .soc-n{font-weight:800;font-size:15px;color:var(--text);line-height:1.2;overflow:hidden;text-overflow:ellipsis}
 .soc-card{min-width:0;overflow:hidden}
 /* ⚡ Bannière Offre Flash — animation premium */
+/* 🎠 Carrousel héro (Offres Flash + Bannière sur la même ligne, auto-balayage) */
+.hero-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-behavior:smooth;gap:0}
+.hero-carousel::-webkit-scrollbar{display:none}
+.hero-slide{min-width:100%;scroll-snap-align:center;flex-shrink:0;box-sizing:border-box}
+.hero-dots{display:flex;gap:6px;justify-content:center;margin:8px 0 14px}
+.hero-dots span{width:7px;height:7px;border-radius:99px;background:var(--border);transition:all .3s}
+.hero-dots span.on{background:var(--accent);width:20px}
+/* ✨ Bannière animée (dégradé mouvant + reflet + flottement) */
+#banner{position:relative;overflow:hidden;background:linear-gradient(120deg,#00b0ff,#3b6fff,#7c3aed,#00b0ff);background-size:260% 260%;animation:bannShift 9s ease infinite}
+#banner::after{content:'';position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:translateX(-140%) skewX(-18deg);animation:bannSheen 5.5s ease-in-out infinite}
+#banner #banner-text{position:relative;z-index:1;animation:bannFloat 4s ease-in-out infinite}
+#banner .btn-promo{position:relative;z-index:1}
+@keyframes bannShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes bannSheen{0%{transform:translateX(-140%) skewX(-18deg)}55%,100%{transform:translateX(260%) skewX(-18deg)}}
+@keyframes bannFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes flashIn{0%{opacity:0;transform:translateY(-18px) scale(.94)}55%{opacity:1;transform:translateY(3px) scale(1.015)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes flashGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes flashGlow{0%,100%{box-shadow:0 6px 20px rgba(255,60,60,.35)}50%{box-shadow:0 10px 34px rgba(255,75,43,.6),0 0 22px 2px rgba(255,150,80,.35)}}
@@ -1323,14 +1338,17 @@ body.ios .pnotif .pn-ic{border-radius:11px}
 <!-- MAIN -->
 <main id="main">
   <!-- ⚡ Bannière offre flash — ACCUEIL (l'autre est dans l'écran Catalogue) -->
-  <div id="flash-banner-home" style="display:none"></div>
-  <div id="banner">
-    <div id="banner-text">
-      <h2 id="banner-title">🔥 Deals Gaming — -70%</h2>
-      <p id="banner-sub">Top-Up</p>
+  <div class="hero-carousel" id="hero-carousel">
+    <div class="hero-slide" id="flash-banner-home" style="display:none"></div>
+    <div class="hero-slide" id="banner">
+      <div id="banner-text">
+        <h2 id="banner-title">🔥 Deals Gaming — -70%</h2>
+        <p id="banner-sub">Top-Up</p>
+      </div>
+      <a href="#" class="btn-promo">Voir</a>
     </div>
-    <a href="#" class="btn-promo">Voir</a>
   </div>
+  <div class="hero-dots" id="hero-dots"></div>
 
   <!-- GAME CATALOGUE (public, visible avant connexion) -->
   <div class="games-block">
@@ -2779,6 +2797,7 @@ function wrapEmoji(root){
     }catch(e){}
   }
   if(document.readyState!=='loading')start();else document.addEventListener('DOMContentLoaded',start);
+  try{setTimeout(function(){try{startHeroCarousel();}catch(e){}},1800);}catch(e){}
 })();
 let shopConfig={deliveryFeeType:'none',deliveryFeeValue:0};
 async function loadConfig(){
@@ -7564,6 +7583,7 @@ function loadFlash(){
       });
     _flashAd=list[0]||null;
     renderFlash();
+    try{startHeroCarousel();}catch(e){}
   },function(err){console.warn('[flash]',err&&err.message);});
 }
 // Toutes les zones où la bannière flash peut apparaître (accueil + catalogue)
@@ -7571,6 +7591,32 @@ function flashSlots(){
   return ['flash-banner-home','flash-banner']
     .map(function(id){return document.getElementById(id);})
     .filter(Boolean);
+}
+// 🎠 Carrousel héro : auto-balayage toutes les 10s entre Offres Flash et Bannière
+var _heroTimer=null;
+function heroSlides(){
+  var car=document.getElementById('hero-carousel');if(!car)return [];
+  return Array.prototype.filter.call(car.children,function(s){return s.style.display!=='none'&&s.offsetParent!==null;});
+}
+function updateHeroDots(){
+  var dots=document.getElementById('hero-dots'),car=document.getElementById('hero-carousel');if(!dots||!car)return;
+  var slides=heroSlides();
+  if(slides.length<=1){dots.innerHTML='';return;}
+  var cur=Math.round(car.scrollLeft/(car.clientWidth||1));
+  dots.innerHTML=slides.map(function(_,i){return '<span class="'+(i===cur?'on':'')+'"></span>';}).join('');
+}
+function startHeroCarousel(){
+  var car=document.getElementById('hero-carousel');if(!car)return;
+  if(_heroTimer){clearInterval(_heroTimer);_heroTimer=null;}
+  car.onscroll=function(){clearTimeout(car._st);car._st=setTimeout(updateHeroDots,120);};
+  updateHeroDots();
+  _heroTimer=setInterval(function(){
+    var slides=heroSlides();if(slides.length<=1)return;
+    var w=car.clientWidth||1;var cur=Math.round(car.scrollLeft/w);
+    var next=(cur+1)%slides.length;
+    car.scrollTo({left:next*w,behavior:'smooth'});
+    setTimeout(updateHeroDots,400);
+  },10000);
 }
 function renderFlash(){
   var els=flashSlots();if(!els.length)return;
@@ -7580,7 +7626,7 @@ function renderFlash(){
   var esc=function(v){return String(v==null?'':v).replace(/</g,'&lt;');};
   var end=(_flashAd.endsAt&&_flashAd.endsAt.toMillis)?_flashAd.endsAt.toMillis():0;
   var sig=(_flashAd.title||'')+'|'+(_flashAd.body||'')+'|'+(_flashAd.discount||'')+'|'+end;
-  var css='position:relative;overflow:hidden;display:block;border-radius:16px;padding:14px 16px;margin-bottom:14px;color:#fff';
+  var css='position:relative;overflow:hidden;display:block;border-radius:16px;padding:14px 16px;margin-bottom:0;color:#fff';
   // ✨ étincelles flottantes (générées une seule fois par offre)
   var buildSparks=function(){
     var SP=['✨','⚡','✦','✨','·','✦'],out='';
