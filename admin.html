@@ -978,12 +978,13 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
   <div class="panel">
     <div class="panel-top"><span class="panel-title">💱 Taux de change (devises)</span></div>
     <div style="padding:16px">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Base = Euro (€). Ces taux servent à afficher les prix côté client en $ et en XOF. Le client choisit sa devise dans ses réglages.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Base = Euro (€). Ces taux servent à afficher les prix côté client en €, $ et XOF. Le client choisit sa devise dans ses réglages.</p>
       <div class="f-row">
+        <div class="form-grp"><label>💶 Euro (€) — devise de base</label><input class="inp" id="cfg-rate-eur" type="number" value="1" disabled style="opacity:.6"/></div>
         <div class="form-grp"><label>1 € = ? Dollars ($)</label><input class="inp" id="cfg-rate-usd" type="number" step="0.0001" min="0" placeholder="1.16"/></div>
         <div class="form-grp"><label>1 € = ? Francs CFA (XOF)</label><input class="inp" id="cfg-rate-xof" type="number" step="0.001" min="0" placeholder="655.957"/></div>
       </div>
-      <span class="hint">💡 Le Franc CFA (XOF) est fixé à <b>655,957</b> pour 1 € (ne change presque jamais). Modifie surtout le taux du <b>Dollar</b> quand il évolue. Laisse vide pour garder la valeur par défaut.</span>
+      <span class="hint">💡 L'<b>Euro (€)</b> est la devise de base (toujours 1). Le <b>Franc CFA (XOF)</b> est fixé à <b>655,957</b> pour 1 € (ne change presque jamais). Modifie surtout le taux du <b>Dollar</b> quand il évolue. Laisse vide pour garder la valeur par défaut.</span>
       <button class="save-btn" style="margin-top:12px" onclick="saveConfig()">💾 Enregistrer les taux</button>
     </div>
   </div>
