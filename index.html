@@ -2282,7 +2282,7 @@ body.ios .pnotif .pn-ic{border-radius:11px}
       <div class="set-row"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="set-txt"><div class="set-name">Version de l'application</div><div class="set-desc" id="about-version">MgLoot v3</div></div></div>
       <div class="set-row"><div class="set-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="set-txt"><div class="set-name">Horaires du support</div><div class="set-desc">8h – 18h · Livraison 24h/24</div></div></div>
       <div class="set-row" onclick="checkForUpdates()"><div class="set-ico"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div><div class="set-txt"><div class="set-name">Vérifier les mises à jour</div><div class="set-desc">Rechercher une nouvelle version</div></div><span class="set-arrow">›</span></div>
-      <div class="set-row" onclick="openChat()"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></div><div class="set-txt"><div class="set-name">Contact</div><div class="set-desc">lootrcc@gmail.com</div></div><span class="set-arrow">›</span></div>
+      <div class="set-row" onclick="location.href='mailto:mgloote@gmail.com'"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></div><div class="set-txt"><div class="set-name">Contact</div><div class="set-desc">mgloote@gmail.com</div></div><span class="set-arrow">›</span></div>
     </div>
     <div class="settings-group">
       <div class="settings-group-label">Aide & documents</div>
@@ -4321,6 +4321,39 @@ function applyFontSize(v,save){
 }
 /* ─── MODIFIER MON NOM ─── */
 async function editProfileName(){
+  if(!currentUser){openAuthModal();return;}
+  var cur=currentUser.displayName||'';
+  var old=document.getElementById('name-edit-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='name-edit-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  ov.innerHTML='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:22px 20px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4)">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="font-size:26px">✏️</span><div style="font-weight:800;font-size:17px">Modifier mon nom</div></div>'
+    +'<input id="name-edit-inp" value="'+String(cur).replace(/"/g,'&quot;')+'" placeholder="Votre prénom et nom" maxlength="40" style="width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);font-size:15px;box-sizing:border-box"/>'
+    +'<div id="name-edit-err" style="color:#ff3b5c;font-size:12px;min-height:14px;margin-top:4px"></div>'
+    +'<div style="display:flex;gap:10px;margin-top:12px">'
+    +'<button onclick="document.getElementById(\'name-edit-ov\').remove()" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text2);font-weight:700;cursor:pointer">Annuler</button>'
+    +'<button id="name-edit-save" onclick="saveProfileName()" style="flex:1;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#00b0ff,#7c3aed);color:#fff;font-weight:800;cursor:pointer">Enregistrer</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){var i=document.getElementById('name-edit-inp');if(i){i.focus();i.select();}},100);
+}
+async function saveProfileName(){
+  var inp=document.getElementById('name-edit-inp');if(!inp)return;
+  var nn=(inp.value||'').trim();var er=document.getElementById('name-edit-err');
+  if(nn.length<2){if(er)er.textContent='Nom trop court (2 caractères min).';return;}
+  var btn=document.getElementById('name-edit-save');if(btn){btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> …';}
+  try{
+    await currentUser.updateProfile({displayName:nn});
+    await db.collection('users').doc(currentUser.uid).set({name:nn,profileAt:Date.now()},{merge:true});
+    if(userData)userData.profileAt=Date.now();
+    updateAuthUI(currentUser);
+    try{refreshProfileUI();}catch(e){}
+    var e2=document.getElementById('name-edit-ov');if(e2)e2.remove();
+    showToast('✅ Nom mis à jour !');
+  }catch(e){if(er)er.textContent=e.message||'Erreur';if(btn){btn.disabled=false;btn.textContent='Enregistrer';}}
+}
+async function _editProfileName_OLD(){
   if(!currentUser){openAuthModal();return;}
   var cur=currentUser.displayName||'';
   var nn=prompt('Votre nouveau nom :',cur);
@@ -7966,12 +7999,23 @@ function loadMyAccounts(){
   if(_myAccUnsub)return;
   _myAccUnsub=db.collection('accountOrders').where('userId','==',currentUser.uid).onSnapshot(function(snap){
     myAccounts=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-      .filter(function(o){return o.status==='paid'||o.status==='delivered'||o.delivered;});
+      .filter(function(o){return (o.status==='paid'||o.status==='delivered'||o.delivered)&&!o.hiddenByUser;});
     renderProfilePurchases();
   },function(){});
 }
 function stopMyAccounts(){if(_myAccUnsub){_myAccUnsub();_myAccUnsub=null;}myAccounts=[];}
 function toggleAccCred(id,ev){try{if(ev)ev.stopPropagation();}catch(e){}var d=document.getElementById('acccred-'+id);if(d)d.style.display=(d.style.display==='none'||!d.style.display)?'block':'none';}
+// 🗑 Le client retire un compte acheté de son espace (masqué chez lui uniquement)
+async function deleteMyAccount(id,ev){
+  try{if(ev)ev.stopPropagation();}catch(e){}
+  if(!confirm('Supprimer ce compte de votre espace ?\nLes accès ne seront plus visibles ici. (Notez-les avant si besoin.)'))return;
+  try{
+    await db.collection('accountOrders').doc(id).set({hiddenByUser:true},{merge:true});
+    myAccounts=(myAccounts||[]).filter(function(o){return o.id!==id;});
+    renderProfilePurchases();
+    showToast('🗑 Compte retiré de votre espace');
+  }catch(e){showToast('❌ '+(e.message||'Échec'));}
+}
 function renderProfilePurchases(){
   var el=document.getElementById('pf-purchases');if(!el)return;
   var html='';
@@ -7991,6 +8035,7 @@ function renderProfilePurchases(){
           +'<div>Identifiant : <b>'+vEsc(c.login||'—')+'</b></div>'
           +'<div>Mot de passe : <b>'+vEsc(c.password||'—')+'</b></div>'
           +(c.notes?'<div>Notes : <b>'+vEsc(c.notes)+'</b></div>':'')
+          +'<button onclick="deleteMyAccount(\''+o.id+'\',event)" style="margin-top:8px;background:#ff3b5c22;color:#ff3b5c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑 Supprimer de mon espace</button>'
         +'</div>':'')
       +'</div><span style="color:var(--text3)">›</span></div>';
   });
