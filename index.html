@@ -2303,6 +2303,10 @@ body.ios .pnotif .pn-ic{border-radius:11px}
       <div class="set-ico"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div>
       <div class="set-txt"><div class="set-name">Modifier mon nom</div><div class="set-desc" id="pf-name-desc">—</div></div><span style="color:var(--text3)">›</span>
     </div>
+    <div class="set-row" onclick="changeProfilePhoto()">
+      <div class="set-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+      <div class="set-txt"><div class="set-name">Modifier ma photo de profil</div><div class="set-desc">Choisir depuis la galerie</div></div><span style="color:var(--text3)">›</span>
+    </div>
     <div class="set-row" onclick="editProfilePhone()">
       <div class="set-ico"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
       <div class="set-txt"><div class="set-name">Modifier mon numéro</div><div class="set-desc" id="pf-phone-desc">Aucun numéro</div></div><span style="color:var(--text3)">›</span>
@@ -2981,9 +2985,15 @@ function sellerBlockHtml(a){
   var name=official?((shopConfig&&shopConfig.shopName)||'MGLOOT'):(a.userName||'Vendeur');
   var color=official?'#1d9bf6':vipCertColor(a.sellerVip!=null?a.sellerVip:-1);
   var photo=official?((shopConfig&&shopConfig.logoUrl)||''):(a.sellerPhoto||'');
-  var av=photo?('<img src="'+photo+'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">')
-    :('<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">'+((name[0]||'?').toUpperCase())+'</div>');
-  return '<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:16px">'
+  var L=LEVELS_CFG();
+  var frame=official?((L[L.length-1]&&L[L.length-1].frame)||''):((a.sellerVip!=null&&L[a.sellerVip])?(L[a.sellerVip].frame||''):'');
+  var inner=photo?('<img src="'+photo+'" alt="" style="width:100%;height:100%;object-fit:cover">')
+    :('<div style="width:100%;height:100%;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">'+((name[0]||'?').toUpperCase())+'</div>');
+  var av='<div style="position:relative;width:42px;height:42px;flex-shrink:0">'
+    +'<div style="width:42px;height:42px;border-radius:50%;overflow:hidden">'+inner+'</div>'
+    +(frame?'<img src="'+frame+'" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:158%;height:158%;pointer-events:none">':'')
+    +'</div>';
+  return '<div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:16px">'
     +av
     +'<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px;display:flex;align-items:center">'+name+certBadge(color,16)+'</div>'
     +'<div style="font-size:11px;color:var(--text3)">'+(official?'✅ Vendeur officiel MgLoot':'Vendeur')+'</div></div></div>';
@@ -4106,9 +4116,10 @@ function refreshProfileUI(){
     var _vv=(function(){try{return currentVipLevel();}catch(e){return {idx:0,lv:{}};}})();
     var _vi=_vv.idx,_frame=(_vv.lv&&_vv.lv.frame)||'';
     var _ph=currentUser.photoURL||(userData&&userData.photoURL)||'';
-    av.style.cursor='pointer';av.onclick=changeProfilePhoto;
-    if(_ph)av.innerHTML='<img src="'+_ph+'" style="width:100%;height:100%;object-fit:cover">'+'<span class="pf-cam">📷</span>';
-    else av.innerHTML='<span>'+(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase()+'</span><span class="pf-cam">📷</span>';
+    av.style.cursor='pointer';
+    av.onclick=function(){ if(_ph&&typeof openLightbox==='function')openLightbox([{type:'image',url:_ph}],0); };
+    if(_ph)av.innerHTML='<img src="'+_ph+'" style="width:100%;height:100%;object-fit:cover">';
+    else av.innerHTML='<span>'+(currentUser.displayName||currentUser.email||'?').slice(0,2).toUpperCase()+'</span>';
     // Cadre : image ornementale de l'admin si dispo, sinon anneau animé CSS
     var _fr=$('pf-frame');
     if(_frame){ av.className=''; if(_fr){_fr.src=_frame;_fr.style.display='block';} }
