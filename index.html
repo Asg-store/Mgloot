@@ -5197,9 +5197,10 @@ function updateAuthUI(user){
     avatarBtn.style.position='relative';
     avatarBtn.style.overflow='visible';
     avatarBtn.style.border=_vf?'none':'2px solid var(--accent)';
+    if(_vf)avatarBtn.style.boxShadow='none';
     avatarBtn.innerHTML=`
       <img src="${photoURL}" alt="avatar"
-        style="width:100%;height:100%;object-fit:cover;border-radius:8px;position:relative;z-index:1"
+        style="width:100%;height:100%;object-fit:cover;border-radius:${_vf?'50%':'8px'};position:relative;z-index:1"
         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">${_vf?`<img src="${_vf}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:152%;height:152%;max-width:152%;pointer-events:none;z-index:3">`:''}`;
 
     // ── Sidebar ──
@@ -5209,9 +5210,10 @@ function updateAuthUI(user){
     document.getElementById('sidebar-email').textContent=user.email||'';
     var _sbav=document.getElementById('sidebar-avatar');
     _sbav.style.overflow='visible';_sbav.style.position='relative';
+    if(_vf){_sbav.style.background='transparent';_sbav.style.border='none';_sbav.style.boxShadow='none';}
     _sbav.innerHTML=`
       <img src="${photoURL}" alt="av"
-        style="width:100%;height:100%;object-fit:cover;border-radius:10px;position:relative;z-index:1"
+        style="width:100%;height:100%;object-fit:cover;border-radius:${_vf?'50%':'10px'};position:relative;z-index:1"
         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(ini)}&size=128&background=7c3aed&color=fff&bold=true&format=png'">`
       +(_vf?`<img src="${_vf}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:168%;height:168%;pointer-events:none;z-index:3">`:'');
   } else {
