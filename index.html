@@ -2686,7 +2686,7 @@ const auth=firebase.auth();
 let storage=null;try{storage=firebase.storage();}catch(e){}
 // 🔔 Cloud Messaging (notifications système en arrière-plan)
 // ⚠️ Collez ici votre clé VAPID : Firebase Console → Paramètres du projet → Cloud Messaging → Configuration Web → "Certificats push Web" → générer une paire de clés.
-const FCM_VAPID_KEY="BG19g4eYfuwhvkpjn9N5hTcY7h9YV_A9j5kb8jONkPx2Bx6R1WKa6qtrjl3N7rxOLmU1uTAdLHDcndozHc4ahHo";  // 🔔 clé VAPID (Firebase → Cloud Messaging → Certificats Web push)
+const FCM_VAPID_KEY="BIKrUL99hByYHTfopdqms2fXwcq7zsLzyL03qNcQvqQyocR7nPdlR2ya67XLRCX44IR99542lCRGjWP0u1LAwJg";  // 🔔 clé VAPID (Firebase → Cloud Messaging → Certificats Web push)
 let messaging=null;try{if(firebase.messaging.isSupported())messaging=firebase.messaging();}catch(e){}
 
 let allProducts=[],cart=JSON.parse(localStorage.getItem('nex-cart')||'[]');
