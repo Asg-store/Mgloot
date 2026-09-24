@@ -1598,6 +1598,7 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
         <select class="inp inp-sel" id="f-hot"><option value="false">Non</option><option value="true">✓ HOT</option></select>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px;color:var(--text2)"><input type="checkbox" id="f-closed"/> ⛔ Fermer ce produit (affiché « Indisponible », achat bloqué)</label>
     <div class="f-row">
       <div class="form-grp"><label>Jeu</label>
         <select class="inp inp-sel" id="f-game">
@@ -2965,6 +2966,7 @@ function clearForm(){
   ['f-id','f-name','f-price','f-orig','f-disc','f-stock','f-img','f-emo','f-desc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-cat').value='';
   document.getElementById('f-hot').value='false';
+  if(document.getElementById('f-closed'))document.getElementById('f-closed').checked=false;
   document.getElementById('f-status').value='active';
   document.getElementById('f-game').value='';
   var _fs=document.getElementById('f-sancay');if(_fs)_fs.value='';
@@ -2995,6 +2997,7 @@ function editProd(id){
   document.getElementById('f-emo').value=p.emoji||'';
   document.getElementById('f-desc').value=p.description||'';
   document.getElementById('f-hot').value=p.featured?'true':'false';
+  if(document.getElementById('f-closed'))document.getElementById('f-closed').checked=!!p.closed;
   document.getElementById('f-status').value=p.status||'active';
   document.getElementById('f-game').value=p.game||'';
   document.getElementById('f-fzrcat').value=p.fzrCat||'';
@@ -3020,6 +3023,7 @@ async function saveProduct(){
     emoji:document.getElementById('f-emo').value.trim()||'🎮',
     description:document.getElementById('f-desc').value.trim()||'',
     featured:document.getElementById('f-hot').value==='true',
+    closed:!!(document.getElementById('f-closed')&&document.getElementById('f-closed').checked),
     status:document.getElementById('f-status').value||'active',
     pointsBuyable:document.getElementById('f-pts-on').value==='true',
     pointsCost:parseInt(document.getElementById('f-pts-cost').value)||0,
@@ -4194,6 +4198,7 @@ async function loadGamesAdmin(){
         <div class="form-grp"><label>Couleur 2</label><input class="inp" id="ga-c2-${key}" type="color" value="${g.c2}" style="height:42px;padding:4px"/></div>
       </div>
       <div class="form-grp"><label>URL du logo</label><input class="inp" id="ga-url-${key}" type="url" value="${aEsc(g.logoUrl)}" placeholder="https://…"/></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px;color:var(--text2)"><input type="checkbox" id="ga-closed-${key}" ${g.closed?'checked':''}/> ⛔ Fermer ce jeu (affiché « Indisponible »)</label>
       <div style="display:flex;gap:8px">
         <button class="btn-ok" style="flex:1" onclick="saveGame('${key}')">💾 Enregistrer</button>
         <button class="btn-del" style="width:auto;padding:0 16px" onclick="deleteGame('${key}',${isDefault})">🗑️</button>
@@ -4209,7 +4214,8 @@ async function saveGame(key){
     sub:get('ga-sub').value.trim()||'',
     c1:get('ga-c1').value||'#7c3aed',
     c2:get('ga-c2').value||'#00d4ff',
-    logoUrl:get('ga-url').value.trim()||''
+    logoUrl:get('ga-url').value.trim()||'',
+    closed:!!(get('ga-closed')&&get('ga-closed').checked)
   };
   try{
     await db.collection('games').doc(key).set(data,{merge:true});

@@ -280,6 +280,9 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);
 #products-grid.list-view{grid-template-columns:1fr}
 
 /* PRODUCT CARD */
+.unavail-stamp{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);background:rgba(20,20,25,.5);color:#fff;font-weight:900;font-size:14px;letter-spacing:1px;padding:4px 14px;border:2px solid rgba(255,255,255,.85);border-radius:8px;text-transform:uppercase;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.4);z-index:4;pointer-events:none}
+.card-img-wrap.dim img,.card-img-wrap.dim .card-placeholder,.game-logo.dim img,.gcat-imgwrap.dim img,.gcat-imgwrap.dim .gcat-ph{filter:grayscale(.75) brightness(.55)}
+.game-card.closed{position:relative}
 .product-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;
@@ -5111,18 +5114,18 @@ function renderProducts(){
     const img=p.imageUrl
       ?`<img src="${p.imageUrl}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=card-placeholder>${p.emoji||'🎮'}</div>'">`
       :`<div class="card-placeholder">${p.emoji||'🎮'}</div>`;
-    return`<div class="product-card" data-id="${p.id}">
-      <div class="card-img-wrap">${img}${discB}${hotB}</div>
+    return`<div class="product-card${p.closed?' is-closed':''}" data-id="${p.id}">
+      <div class="card-img-wrap${p.closed?' dim':''}">${img}${discB}${hotB}${p.closed?'<div class="unavail-stamp">Indisponible</div>':''}</div>
       <div class="card-body">
         <div class="card-cat">${p.category||'Général'}</div>
         <div class="card-name">${p.name}</div>
         <div class="card-footer">
           <div><div class="card-price">${fmtMoney(price)}</div>${orig}</div>
-          <button class="btn-add" data-id="${p.id}">
+          <button class="btn-add" data-id="${p.id}" ${p.closed?'disabled style="opacity:.35;cursor:not-allowed"':''}>
             <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
-        ${ptsBtn}
+        ${p.closed?'<div style="font-size:11px;color:#ff5a5a;font-weight:700;margin-top:6px">⛔ Indisponible pour le moment</div>':ptsBtn}
       </div>
     </div>`;
   }).join('');
@@ -6230,9 +6233,9 @@ function renderGamesCatalog(grid){
     const maxDisc=prods.reduce((m,p)=>Math.max(m,+p.discount||0),0);
     const discB=maxDisc>0?`<div class="gcat-disc">-${maxDisc}%</div>`:'';
     const cnt=prods.length;
-    return`<div class="gcat-card" onclick="filterByGame('${g.key}')">${discB}${gcatImg(g)}
+    return`<div class="gcat-card${g.closed?' is-closed':''}" onclick="${g.closed?'showToast(\'⛔ Ce jeu est indisponible pour le moment\')':'filterByGame(\''+g.key+'\')'}">${discB}<div class="gcat-imgwrap${g.closed?' dim':''}" style="position:relative">${gcatImg(g)}${g.closed?'<div class="unavail-stamp">Indisponible</div>':''}</div>
       <div class="gcat-b"><div class="gcat-name">${g.name}</div>
-      <div class="gcat-meta"><span class="gcat-star">★ 5.0</span>${cnt?`<span>· ${cnt} offre${cnt>1?'s':''}</span>`:''}</div></div></div>`;
+      <div class="gcat-meta">${g.closed?'<span style="color:#ff5a5a;font-weight:700">⛔ Indisponible</span>':`<span class="gcat-star">★ 5.0</span>${cnt?`<span>· ${cnt} offre${cnt>1?'s':''}</span>`:''}`}</div></div></div>`;
   }).join('');
 }
 // En-tête d'un jeu (type "PUBG MOBILE Top Up" + badges)
@@ -9223,7 +9226,7 @@ async function buyAccountWith(method,id){
     if(method==='points'){
       if(!pts){showToast('❌ Paiement en points non disponible pour ce compte');return;}
       if((userData.points||0)<pts){showToast('❌ Points insuffisants');return;}
-      if(!confirm('Acheter « '+(a.title||'ce compte')+' » pour '+pts+' points ?'))return;
+      if(!await asgConfirm({icon:'⭐',title:'Achat par points',message:'Acheter « '+(a.title||'ce compte')+' » pour '+pts+' points ?',okText:'Acheter',cancelText:'Annuler'}))return;
       await db.runTransaction(async function(tx){
         var us=await tx.get(uref);var p=((us.data()||{}).points)||0;
         if(p<pts)throw new Error('Points insuffisants');
@@ -9231,7 +9234,7 @@ async function buyAccountWith(method,id){
       });
     }else{
       if((userData.walletBalance||0)<price){showToast('❌ Solde insuffisant. Rechargez votre portefeuille.');return;}
-      if(!confirm('Acheter « '+(a.title||'ce compte')+' » pour '+fmtMoney(price)+' ?'))return;
+      if(!await asgConfirm({icon:'🛍️',title:'Acheter ce compte',message:'Acheter « '+(a.title||'ce compte')+' » pour '+fmtMoney(price)+' ?',okText:'Acheter',cancelText:'Annuler'}))return;
       await db.runTransaction(async function(tx){
         var us=await tx.get(uref);var bal=((us.data()||{}).walletBalance)||0;
         if(bal<price)throw new Error('Solde insuffisant');
