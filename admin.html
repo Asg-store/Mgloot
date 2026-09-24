@@ -3520,6 +3520,17 @@ async function aoUploadPhotos(e){
   aoRenderThumbs();
   if(aoMedia.length)toast('✅ '+aoMedia.length+' média(s) prêt(s)');
 }
+// 📤 Upload du logo d'un jeu depuis la galerie (via ImgBB)
+async function uploadGameLogo(key){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=async function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    toast('⏳ Envoi du logo…');
+    try{var url=await imgbbUpload(f);var el=document.getElementById('ga-url-'+key);if(el)el.value=url;toast('✅ Logo importé (cliquez Enregistrer)');}
+    catch(e){toast('❌ '+(e.message||'Échec upload'),true);}
+  };
+  inp.click();
+}
 function imgbbUpload(file){
   return new Promise(function(resolve,reject){
     var fr=new FileReader();
@@ -4197,7 +4208,9 @@ async function loadGamesAdmin(){
         <div class="form-grp"><label>Couleur 1</label><input class="inp" id="ga-c1-${key}" type="color" value="${g.c1}" style="height:42px;padding:4px"/></div>
         <div class="form-grp"><label>Couleur 2</label><input class="inp" id="ga-c2-${key}" type="color" value="${g.c2}" style="height:42px;padding:4px"/></div>
       </div>
-      <div class="form-grp"><label>URL du logo</label><input class="inp" id="ga-url-${key}" type="url" value="${aEsc(g.logoUrl)}" placeholder="https://…"/></div>
+      <div class="form-grp"><label>Logo du jeu</label>
+        <button type="button" class="save-btn" style="margin:0 0 8px;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="uploadGameLogo('${key}')">📤 Importer depuis la galerie</button>
+        <input class="inp" id="ga-url-${key}" type="url" value="${aEsc(g.logoUrl)}" placeholder="…ou collez une URL https://…"/></div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px;color:var(--text2)"><input type="checkbox" id="ga-closed-${key}" ${g.closed?'checked':''}/> ⛔ Fermer ce jeu (affiché « Indisponible »)</label>
       <div style="display:flex;gap:8px">
         <button class="btn-ok" style="flex:1" onclick="saveGame('${key}')">💾 Enregistrer</button>
