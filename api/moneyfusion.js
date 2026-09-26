@@ -34,13 +34,43 @@ function getApp() {
 
 const EUR_XOF = 655.957;
 const MF_URL = (process.env.MONEYFUSION_API_URL || 'https://pay.moneyfusion.net/MGLOOT/919992e65a2b7491/pay/');
-// Base de l'endpoint de vérification de MoneyFusion (FusionPay). On y ajoute le token.
-const MF_VERIFY = (process.env.MONEYFUSION_VERIFY_URL || 'https://www.pay.moneyfusion.net/paiementNotif/').replace(/\/*$/, '/');
+// Endpoints de vérification MoneyFusion — on essaie plusieurs hôtes et on garde
+// celui que le serveur arrive réellement à joindre (certains sont bloqués/injoignables
+// depuis Vercel → « fetch failed »). MONEYFUSION_VERIFY_URL force un hôte précis.
+const MF_VERIFY_CANDIDATES = (process.env.MONEYFUSION_VERIFY_URL
+  ? [process.env.MONEYFUSION_VERIFY_URL]
+  : [
+      'https://www.pay.moneyfusion.net/paiementNotif/',
+      'https://pay.moneyfusion.net/paiementNotif/',
+      'https://api.moneyfusion.net/paiementNotif/'
+    ]
+).map(u => u.replace(/\/*$/, '/'));
 
 // Un statut MoneyFusion est-il "payé" ?
 function isPaidStatus(s) {
   s = String(s || '').toLowerCase().trim();
   return s === 'paid' || s === 'success' || s === 'completed' || s === 'succes' || s === 'réussi' || s === 'reussi';
+}
+
+// Interroge MoneyFusion pour l'état d'un paiement, en testant chaque hôte.
+// Retourne { ok, statut, via, attempts } — attempts détaille chaque essai (pour le diag).
+async function mfVerify(token) {
+  const attempts = [];
+  for (const base of MF_VERIFY_CANDIDATES) {
+    try {
+      const t0 = Date.now();
+      const r = await fetch(base + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
+      let j = {}; try { j = await r.json(); } catch (e) { j = {}; }
+      const dd = (j && j.data && typeof j.data === 'object') ? j.data : j;
+      const statut = (dd && (dd.statut || dd.status)) || null;
+      attempts.push({ base, httpStatus: r.status, statut, ms: Date.now() - t0 });
+      // Hôte joignable qui renvoie un statut (ou un 200) → on l'utilise.
+      if (statut != null || r.ok) return { ok: true, statut, via: base, attempts };
+    } catch (e) {
+      attempts.push({ base, error: (e && e.message) || 'fetch failed' });
+    }
+  }
+  return { ok: false, statut: null, via: null, attempts };
 }
 
 // ─────────── Crédit / livraison partagé (webhook ET status) — idempotent ───────────
@@ -129,13 +159,8 @@ module.exports = async (req, res) => {
         const d = doc.data() || {};
         let live = null;
         if (d.token) {
-          try {
-            const t0 = Date.now();
-            const r = await fetch(MF_VERIFY + encodeURIComponent(d.token), { headers: { 'Accept': 'application/json' } });
-            const j = await r.json().catch(() => ({}));
-            const dd = (j && j.data && typeof j.data === 'object') ? j.data : j;
-            live = { httpStatus: r.status, mfStatut: (dd && (dd.statut || dd.status)) || null, ms: Date.now() - t0 };
-          } catch (e) { live = { error: e.message }; }
+          const v = await mfVerify(d.token);
+          live = { statutRetenu: v.statut, hoteQuiMarche: v.via, essais: v.attempts };
         }
         out.push({
           ref: doc.id, statusEnBase: d.status || '?', purpose: d.purpose || '?',
@@ -144,7 +169,7 @@ module.exports = async (req, res) => {
           moneyFusionEnDirect: live
         });
       }
-      return res.status(200).json({ ok: true, verifyUrl: MF_VERIFY, derniers: out });
+      return res.status(200).json({ ok: true, hotesTestes: MF_VERIFY_CANDIDATES, derniers: out });
     } catch (e) { return res.status(200).json({ error: e.message }); }
   }
 
@@ -238,23 +263,14 @@ module.exports = async (req, res) => {
       const token = docData.token || String(p.token || '');
       if (!token) return res.status(200).json({ ok: true, paid: false, note: 'token manquant' });
 
-      // Interroge MoneyFusion : GET paiementNotif/{token}
-      let mf = {};
-      try {
-        const r = await fetch(MF_VERIFY + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
-        mf = await r.json().catch(() => ({}));
-      } catch (e) {
-        return res.status(200).json({ ok: true, paid: false, note: 'vérif indisponible: ' + e.message });
-      }
-      const dd = (mf && mf.data && typeof mf.data === 'object') ? mf.data : mf;
-      const statut = (dd && (dd.statut || dd.status)) || '';
-
-      if (isPaidStatus(statut)) {
+      // Interroge MoneyFusion (essaie plusieurs hôtes).
+      const v = await mfVerify(token);
+      if (v.ok && isPaidStatus(v.statut)) {
         const r2 = await applyPaid(db, FieldValue, payRef, BASE);
         return res.status(200).json({ ok: true, paid: true, credited: !!(r2 && r2.done), purpose: docData.purpose || 'wallet' });
       }
-      // Pas encore payé (pending / no paid / failure)
-      return res.status(200).json({ ok: true, paid: false, status: String(statut || '').toLowerCase() });
+      // Pas encore payé (pending / no paid / failure) ou hôte injoignable
+      return res.status(200).json({ ok: true, paid: false, status: String(v.statut || '').toLowerCase(), reachable: v.ok });
     }
 
     // ─────────────── 3) WEBHOOK MoneyFusion (filet de sécurité) ───────────────
@@ -280,3 +296,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 };
+                                                  
