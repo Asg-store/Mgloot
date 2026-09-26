@@ -4508,7 +4508,7 @@ async function payItemMoneyFusion(type,id){
     });
     const d=await r.json().catch(function(){return {};});
     if(d&&d.url){
-      try{localStorage.setItem('mf-return','buy');localStorage.setItem('mf-ref',d.ref||'');localStorage.setItem('mf-bal',String((userData&&userData.walletBalance)||0));localStorage.setItem('mf-buy',JSON.stringify({type:type,id:id}));}catch(e){}
+      try{localStorage.setItem('mf-return','buy');localStorage.setItem('mf-ref',d.ref||'');localStorage.setItem('mf-ts',String(Date.now()));localStorage.setItem('mf-bal',String((userData&&userData.walletBalance)||0));localStorage.setItem('mf-buy',JSON.stringify({type:type,id:id}));}catch(e){}
       window.location.href=d.url;return;
     }
     showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
@@ -4528,7 +4528,7 @@ async function startRechargeMoneyFusion(amtEuro){
       body:JSON.stringify({action:'create',amountEur:amtEuro,purpose:'wallet',name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){try{localStorage.setItem('mf-return','wallet');localStorage.setItem('mf-ref',d.ref||'');}catch(e){}window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','wallet');localStorage.setItem('mf-ref',d.ref||'');localStorage.setItem('mf-ts',String(Date.now()));}catch(e){}window.location.href=d.url;return;}
     rechargeErr((d&&d.error)||'MoneyFusion indisponible pour le moment.');
     if(btn){btn.disabled=false;btn.textContent='Continuer →';}
   }catch(e){
@@ -4564,7 +4564,7 @@ async function payCartMoneyFusion(){
       body:JSON.stringify({action:'create',amountEur:total,purpose:'order',orderId:oref.id,name:(currentUser.displayName||''),phone:phone})
     });
     const d=await r.json().catch(function(){return {};});
-    if(d&&d.url){try{localStorage.setItem('mf-return','order');localStorage.setItem('mf-ref',d.ref||'');localStorage.setItem('mf-order',oref.id);}catch(e){}try{consumeVipCoupon();}catch(e){}window.location.href=d.url;return;}
+    if(d&&d.url){try{localStorage.setItem('mf-return','order');localStorage.setItem('mf-ref',d.ref||'');localStorage.setItem('mf-ts',String(Date.now()));localStorage.setItem('mf-order',oref.id);}catch(e){}try{consumeVipCoupon();}catch(e){}window.location.href=d.url;return;}
     showToast('❌ '+((d&&d.error)||'MoneyFusion indisponible'));
     if(btn){btn.disabled=false;btn.innerHTML='Payer →';}
   }catch(e){
@@ -7800,61 +7800,85 @@ async function spinWheel(){
     var p=new URLSearchParams(location.search);
     var r=p.get('ref');
     if(r&&r.length>5)localStorage.setItem('asg-ref',r);
-    // 💠 Retour de paiement MoneyFusion : message + ouverture de la bonne section
+    // 💠 Retour de paiement MoneyFusion : on lance la vérification active.
     var pt=p.get('mfdone');
     if(!pt && location.pathname.indexOf('/success')>=0)pt='1';
     if(pt){
       try{history.replaceState(null,'','/');}catch(e){}   // nettoie l'URL
-      var _mfTarget='',_mfRef='';
-      try{_mfTarget=localStorage.getItem('mf-return')||'';_mfRef=localStorage.getItem('mf-ref')||'';localStorage.removeItem('mf-return');localStorage.removeItem('mf-ref');}catch(e){}
-      var _bal0=0,_buy={};
-      try{_bal0=parseFloat(localStorage.getItem('mf-bal')||'0')||0;_buy=JSON.parse(localStorage.getItem('mf-buy')||'{}')||{};localStorage.removeItem('mf-bal');localStorage.removeItem('mf-buy');}catch(e){}
-      // 💠 VÉRIFICATION ACTIVE : on demande directement à MoneyFusion si c'est payé,
-      //    au lieu d'attendre le webhook (qui peut prendre 10 min). Confirmation quasi-instantanée.
-      try{showToast('⏳ Vérification du paiement…');}catch(e){}
-      var _mfPaid=false,_mfTries=0,_MF_MAX=30;
-      function _mfFinish(){
-        if(_mfTarget==='buy'){
-          // Achat direct (compte/VPN) : attendre que le portefeuille soit crédité, puis finaliser
-          try{showToast('✅ Paiement reçu — finalisation de l\'achat…');}catch(e){}
-          var _bt=0,_bw=setInterval(function(){
-            _bt++;
-            var _b=+((userData&&userData.walletBalance)||0);
-            if(_b>_bal0+0.001){
-              clearInterval(_bw);
-              setTimeout(function(){ try{ if(_buy.type==='account'&&typeof buyAccountWith==='function')buyAccountWith('wallet',_buy.id); else if(_buy.type==='vpn'&&typeof buyVpn==='function')buyVpn(_buy.id,'wallet'); }catch(e){} },500);
-            } else if(_bt>=15){ clearInterval(_bw); try{showToast('✅ Portefeuille crédité. Terminez l\'achat depuis la boutique.');}catch(e){} }
-          },1000);
-          return;
-        }
-        try{showToast('✅ Paiement confirmé !');}catch(e){}
-        try{if(typeof cart!=='undefined'){cart=[];if(typeof saveCart==='function')saveCart();if(typeof renderCart==='function')renderCart();}}catch(e){}
-        try{
-          if(_mfTarget==='wallet'){ (typeof openScreen==='function')?openScreen('wallet'):0; }
-          else if(_mfTarget==='order'){ (typeof openPayHistory==='function')?openPayHistory():((typeof openScreen==='function')?openScreen('profile'):0); }
-        }catch(e){}
-      }
-      function _mfPoll(){
-        if(_mfPaid)return;
-        _mfTries++;
-        if(!_mfRef){
-          if(_mfTarget==='buy'){ var _b=+((userData&&userData.walletBalance)||0); if(_b>_bal0+0.001){_mfPaid=true;_mfFinish();return;} }
-          if(_mfTries>=_MF_MAX){ try{showToast('⏳ Paiement en cours de confirmation… vous serez notifié.');}catch(e){} return; }
-          setTimeout(_mfPoll,2000);return;
-        }
-        fetch('/api/moneyfusion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'status',ref:_mfRef})})
-          .then(function(r){return r.json();}).catch(function(){return {};})
-          .then(function(d){
-            if(_mfPaid)return;
-            if(d&&d.paid){ _mfPaid=true; _mfFinish(); return; }
-            if(_mfTries>=_MF_MAX){ try{showToast('⏳ Paiement en cours de confirmation… vous serez notifié dès validation.');}catch(e){} return; }
-            setTimeout(_mfPoll,2000);
-          });
-      }
-      _mfPoll();
+      try{if(typeof _mfResumePending==='function')_mfResumePending(true);}catch(e){}
     }
   }catch(e){}
 })();
+
+/* ═══════════ 💠 MoneyFusion — VÉRIFICATION ACTIVE (anti-retard) ═══════════
+   Problème : MoneyFusion ne renvoie pas toujours le client vers /success après
+   un paiement Mobile Money (il ferme la page avec ×). Résultat : la confirmation
+   ne dépendait que du webhook, souvent lent (10 min+).
+   Solution : dès que le client REVIENT dans l'app (retour, onglet visible,
+   réouverture), on demande directement à MoneyFusion « c'est payé ? » et on
+   crédite / livre tout de suite. On garde la référence tant que ce n'est pas
+   confirmé, donc même une réouverture plus tard finalise la commande. */
+function _mfClearPending(){
+  try{['mf-ref','mf-return','mf-bal','mf-buy','mf-order','mf-ts'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}
+}
+function _mfResumePending(fromReturn){
+  var ref='',target='',bal0=0,buy={},ts=0;
+  try{
+    ref=localStorage.getItem('mf-ref')||'';
+    target=localStorage.getItem('mf-return')||'';
+    bal0=parseFloat(localStorage.getItem('mf-bal')||'0')||0;
+    buy=JSON.parse(localStorage.getItem('mf-buy')||'{}')||{};
+    ts=parseInt(localStorage.getItem('mf-ts')||'0',10)||0;
+  }catch(e){}
+  if(!ref)return;                                   // aucun paiement en attente
+  if(ts && (Date.now()-ts)>3600000){_mfClearPending();return;} // expire après 1h
+  if(window._mfPolling)return;                      // déjà en cours
+  window._mfPolling=true;
+  if(fromReturn){try{showToast('⏳ Vérification du paiement…');}catch(e){}}
+  var tries=0, max=(fromReturn?30:8), paid=false;
+  function finish(){
+    paid=true; _mfClearPending(); window._mfPolling=false;
+    if(target==='buy'){
+      try{showToast('✅ Paiement reçu — finalisation de l\'achat…');}catch(e){}
+      var bt=0,bw=setInterval(function(){
+        bt++;
+        var b=+((typeof userData!=='undefined'&&userData&&userData.walletBalance)||0);
+        if(b>bal0+0.001){
+          clearInterval(bw);
+          setTimeout(function(){ try{ if(buy.type==='account'&&typeof buyAccountWith==='function')buyAccountWith('wallet',buy.id); else if(buy.type==='vpn'&&typeof buyVpn==='function')buyVpn(buy.id,'wallet'); }catch(e){} },500);
+        } else if(bt>=15){ clearInterval(bw); try{showToast('✅ Portefeuille crédité. Terminez l\'achat depuis la boutique.');}catch(e){} }
+      },1000);
+      return;
+    }
+    try{showToast('✅ Paiement confirmé !');}catch(e){}
+    try{if(typeof cart!=='undefined'){cart=[];if(typeof saveCart==='function')saveCart();if(typeof renderCart==='function')renderCart();}}catch(e){}
+    try{
+      if(target==='wallet'){ (typeof openScreen==='function')&&openScreen('wallet'); }
+      else if(target==='order'){ (typeof openPayHistory==='function')?openPayHistory():((typeof openScreen==='function')&&openScreen('profile')); }
+    }catch(e){}
+  }
+  function poll(){
+    if(paid)return;
+    tries++;
+    fetch('/api/moneyfusion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'status',ref:ref})})
+      .then(function(r){return r.json();}).catch(function(){return {};})
+      .then(function(d){
+        if(paid)return;
+        if(d&&d.paid){ finish(); return; }
+        if(tries>=max){
+          window._mfPolling=false;   // on GARDE mf-ref : réessai à la prochaine ouverture / onglet visible
+          if(fromReturn){try{showToast('⏳ Paiement en cours de confirmation… il sera validé automatiquement.');}catch(e){}}
+          return;
+        }
+        setTimeout(poll,2000);
+      });
+  }
+  poll();
+}
+// Reprise auto : au chargement de l'app, et chaque fois que l'onglet redevient visible.
+window.addEventListener('load',function(){ setTimeout(function(){ try{_mfResumePending(false);}catch(e){} },2500); });
+document.addEventListener('visibilitychange',function(){ if(!document.hidden){ try{_mfResumePending(false);}catch(e){} } });
+
 /* 🎁 Objectif et récompense de parrainage — réglables par l'admin
    dans config/shop (inviteGoal / inviteReward). Valeurs par défaut : 10 / 500. */
 function inviteGoal(){var n=+(shopConfig&&shopConfig.inviteGoal);return (n>0)?n:10;}
