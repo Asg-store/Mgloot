@@ -1,8 +1,8 @@
 /* ════════════════════════════════════════════════════════════════
-   LootR — Service Worker des notifications push (FCM)
+   MgLoot — Service Worker des notifications push (FCM)
    Version 5 — DIAGNOSTIC : affiche le type dans le titre de la notif
    Ce fichier DOIT être à la racine du site (même niveau que index.html),
-   accessible à l'adresse : https://lootr.cc/firebase-messaging-sw.js
+   accessible à l'adresse : https://mgloot.com/firebase-messaging-sw.js
    C'est lui qui affiche la notification dans la barre du téléphone
    QUAND L'APP EST FERMÉE ou en arrière-plan (comme WhatsApp / Telegram / TikTok).
    ════════════════════════════════════════════════════════════════ */
@@ -11,12 +11,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "AIzaSyDsWdTbAm4q1FC5opeKXFFd_PaqlnbdMHw",
-  authDomain: "shop-7ddd7.firebaseapp.com",
-  projectId: "shop-7ddd7",
-  storageBucket: "shop-7ddd7.firebasestorage.app",
-  messagingSenderId: "744435807868",
-  appId: "1:744435807868:web:44c7b0b27e15cb00f43bf9"
+  apiKey: "AIzaSyBj9sHzNDjH3aPLK4LC42s2mqwsDgbd38g",
+  authDomain: "mglooti.firebaseapp.com",
+  projectId: "mglooti",
+  storageBucket: "mglooti.firebasestorage.app",
+  messagingSenderId: "156127950943",
+  appId: "1:156127950943:web:5007e3f0756a0b3b7b03ea"
 });
 
 var messaging = firebase.messaging();
@@ -28,7 +28,8 @@ messaging.onBackgroundMessage(function(payload){
   var data = (payload && payload.data) || {};
   var n    = (payload && payload.notification) || {};
   var _type = data.type || data.link || '';
-  var title = data.title || n.title || '📢 LootR';
+  // 🔎 DIAGNOSTIC TEMPORAIRE : affiche le type reçu dans le titre pour vérifier la transmission
+  var title = (data.title || n.title || '📢 MgLoot') + ' [type='+(_type||'VIDE')+']';
   var body  = data.body  || n.body  || 'Vous avez une nouvelle notification';
   var image = data.image || n.image || undefined;
 
