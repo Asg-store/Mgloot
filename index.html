@@ -7835,7 +7835,12 @@ function _mfResumePending(fromReturn){
   if(window._mfPolling)return;                      // déjà en cours
   window._mfPolling=true;
   if(fromReturn){try{showToast('⏳ Vérification du paiement…');}catch(e){}}
-  var tries=0, max=(fromReturn?30:8), paid=false;
+  // Rythme : 1 min rapide (2 s), puis lent (10 s) jusqu'à ~13 min si on vient du
+  // retour paiement (le client peut attendre la validation Orange Money plusieurs min).
+  var tries=0, paid=false;
+  var FAST=30;                       // 30 × 2 s = 1 min
+  var SLOW=(fromReturn?78:0);        // + 78 × 10 s ≈ 13 min (app ouverte)
+  var toldWaiting=false;
   function finish(){
     paid=true; _mfClearPending(); window._mfPolling=false;
     if(target==='buy'){
@@ -7859,18 +7864,23 @@ function _mfResumePending(fromReturn){
   }
   function poll(){
     if(paid)return;
+    // Si un NOUVEAU paiement a été lancé entre-temps, on arrête cet ancien suivi.
+    var cur='';try{cur=localStorage.getItem('mf-ref')||'';}catch(e){}
+    if(cur && cur!==ref){ window._mfPolling=false; return; }
     tries++;
     fetch('/api/moneyfusion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'status',ref:ref})})
       .then(function(r){return r.json();}).catch(function(){return {};})
       .then(function(d){
         if(paid)return;
         if(d&&d.paid){ finish(); return; }
-        if(tries>=max){
+        if(tries>=FAST+SLOW){
           window._mfPolling=false;   // on GARDE mf-ref : réessai à la prochaine ouverture / onglet visible
-          if(fromReturn){try{showToast('⏳ Paiement en cours de confirmation… il sera validé automatiquement.');}catch(e){}}
+          if(fromReturn){try{showToast('⏳ Paiement pas encore validé par MoneyFusion. Vous serez notifié dès validation.');}catch(e){}}
           return;
         }
-        setTimeout(poll,2000);
+        // Passage en rythme lent après la 1ʳᵉ minute : message d'attente une seule fois.
+        if(fromReturn && tries===FAST && !toldWaiting){ toldWaiting=true; try{showToast('⏳ En attente de la confirmation MoneyFusion (Orange Money)…');}catch(e){} }
+        setTimeout(poll, tries<FAST?2000:10000);
       });
   }
   poll();
