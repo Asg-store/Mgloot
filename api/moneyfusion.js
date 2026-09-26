@@ -1,19 +1,25 @@
 // ════════════════════════════════════════════════════════════════
-//  MgLoot — /api/moneyfusion   (créer un paiement MoneyFusion + webhook)
+//  MgLoot — /api/moneyfusion   (créer un paiement + vérifier + webhook)
 //
 //  UNE seule fonction pour rester dans la limite Vercel :
 //   • action:'create'  → le client (authentifié Firebase) demande un
 //     paiement. On crée un enregistrement "pending", on appelle
 //     MoneyFusion, et on renvoie l'URL de redirection.
-//   • sinon (POST de MoneyFusion) = WEBHOOK : quand le paiement réussit,
-//     MoneyFusion appelle cette URL → on crédite le portefeuille OU on
-//     passe la commande en "payée" + livraison auto (sécurisé, anti-doublon).
+//   • action:'status'  → VÉRIFICATION ACTIVE (rapide) : au retour du
+//     paiement, le client interroge cet endpoint avec sa "ref". On
+//     demande directement à MoneyFusion l'état du paiement (endpoint
+//     paiementNotif/{token}) et, s'il est payé, on crédite/livre TOUT
+//     DE SUITE — sans attendre le webhook (qui peut prendre 10 min).
+//   • sinon (POST de MoneyFusion) = WEBHOOK : filet de sécurité si le
+//     client ne revient pas. Même traitement, idempotent (anti-doublon).
 //
 //  Env Vercel REQUISES :
-//    - MONEYFUSION_API_URL   (ton lien d'API MoneyFusion, ex :
-//        https://pay.moneyfusion.net/MGLOOT/919992e65a2b7491/pay/)
+//    - MONEYFUSION_API_URL   (ton lien d'API MoneyFusion)
 //    - PUBLIC_BASE_URL       (ex : https://mgloot.com)
 //    - FIREBASE_SERVICE_ACCOUNT (déjà présente)
+//  Optionnelle :
+//    - MONEYFUSION_VERIFY_URL (base de vérif, défaut :
+//        https://www.pay.moneyfusion.net/paiementNotif/)
 // ════════════════════════════════════════════════════════════════
 const admin = require('firebase-admin');
 
@@ -28,6 +34,72 @@ function getApp() {
 
 const EUR_XOF = 655.957;
 const MF_URL = (process.env.MONEYFUSION_API_URL || 'https://pay.moneyfusion.net/MGLOOT/919992e65a2b7491/pay/');
+// Base de l'endpoint de vérification de MoneyFusion (FusionPay). On y ajoute le token.
+const MF_VERIFY = (process.env.MONEYFUSION_VERIFY_URL || 'https://www.pay.moneyfusion.net/paiementNotif/').replace(/\/*$/, '/');
+
+// Un statut MoneyFusion est-il "payé" ?
+function isPaidStatus(s) {
+  s = String(s || '').toLowerCase().trim();
+  return s === 'paid' || s === 'success' || s === 'completed' || s === 'succes' || s === 'réussi' || s === 'reussi';
+}
+
+// ─────────── Crédit / livraison partagé (webhook ET status) — idempotent ───────────
+async function applyPaid(db, FieldValue, payRef, BASE) {
+  let credited = 0, target = '', kind = '', paidOrderId = '', already = false;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(payRef);
+    if (!snap.exists) return;
+    const d = snap.data() || {};
+    if (d.status === 'credited' || d.status === 'paid') { already = true; return; } // déjà traité
+    const uid = d.uid, amountEur = +d.amountEur || 0, purpose = d.purpose || 'wallet', orderId = d.orderId || '';
+    if (!uid) return;
+    if (purpose === 'order' && orderId) {
+      tx.set(db.collection('orders').doc(orderId), {
+        status: 'paid', paymentMethod: 'MoneyFusion', paymentRef: payRef.id, paidAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      tx.set(payRef, { status: 'paid', creditedAt: FieldValue.serverTimestamp() }, { merge: true });
+      kind = 'order'; paidOrderId = orderId; target = uid;
+    } else {
+      if (amountEur <= 0) return;
+      tx.set(db.collection('users').doc(uid), { walletBalance: FieldValue.increment(amountEur) }, { merge: true });
+      tx.set(db.collection('users').doc(uid).collection('walletHistory').doc(), {
+        amount: amountEur, type: 'credit', note: 'Recharge MoneyFusion', method: 'MoneyFusion',
+        ref: payRef.id, createdAt: FieldValue.serverTimestamp()
+      });
+      tx.set(payRef, { status: 'credited', creditedAt: FieldValue.serverTimestamp() }, { merge: true });
+      kind = 'wallet'; credited = amountEur; target = uid;
+    }
+  });
+
+  if (already) return { already: true, done: true };
+
+  // Livraison automatique après paiement d'une commande
+  if (kind === 'order' && paidOrderId) {
+    try {
+      await fetch(BASE + '/api/flashtopup-deliver', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: paidOrderId })
+      }).catch(() => {});
+    } catch (e) {}
+  }
+  // Notification + push au client
+  if (target) {
+    try {
+      const note = (kind === 'order')
+        ? { icon: '✅', title: 'Paiement reçu', body: 'Votre commande est payée (MoneyFusion). Livraison en cours.', type: 'order', link: 'orders' }
+        : { icon: '💰', title: 'Portefeuille rechargé', body: 'Votre recharge de ' + credited.toFixed(2) + ' € (MoneyFusion) a été créditée.', type: 'wallet', link: 'wallet' };
+      note.read = false; note.createdAt = FieldValue.serverTimestamp();
+      await db.collection('users').doc(target).collection('notifications').add(note);
+      try {
+        await fetch(BASE + '/api/send-push', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: target, title: (note.icon || '🔔') + ' ' + note.title, body: note.body, url: '/' })
+        });
+      } catch (e) {}
+    } catch (e) {}
+  }
+  return { done: !!kind, kind, credited, target };
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,8 +107,7 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // 🔎 Outil : afficher l'IP de SORTIE réelle du serveur (pour l'allowlist MoneyFusion)
-  //    Ouvrez https://mgloot.com/api/moneyfusion?ip=1 plusieurs fois.
+  // 🔎 Outil : afficher l'IP de SORTIE réelle du serveur (allowlist MoneyFusion)
   if (req.method === 'GET' && (req.query && (req.query.ip === '1' || req.query.ip === 'true'))) {
     try {
       const r = await fetch('https://api.ipify.org?format=json');
@@ -105,11 +176,56 @@ module.exports = async (req, res) => {
         await db.collection('moneyfusionPayments').doc(ref).set({ token: data.token || '' }, { merge: true });
         return res.status(200).json({ ok: true, url: data.url, token: data.token || '', ref });
       }
-      // On renvoie le message EXACT de MoneyFusion pour diagnostiquer (IP, URL, etc.)
       return res.status(200).json({ error: (data && (data.message || data.msg)) || 'MoneyFusion a refusé la demande.', mf: data });
     }
 
-    // ─────────────── 2) WEBHOOK MoneyFusion (paiement terminé) ───────────────
+    // ─────────────── 2) VÉRIFICATION ACTIVE (retour client, rapide) ───────────────
+    //  Le client appelle {action:'status', ref} en boucle après le paiement.
+    //  On demande DIRECTEMENT l'état à MoneyFusion et on crédite tout de suite.
+    if (p.action === 'status') {
+      const ref = String(p.ref || '').trim();
+      let payRef = null, docData = null;
+      if (ref) {
+        payRef = db.collection('moneyfusionPayments').doc(ref);
+        const s = await payRef.get();
+        if (!s.exists) return res.status(200).json({ ok: true, paid: false, note: 'ref introuvable' });
+        docData = s.data() || {};
+      } else if (p.token) {
+        const q = await db.collection('moneyfusionPayments').where('token', '==', String(p.token)).limit(1).get();
+        if (q.empty) return res.status(200).json({ ok: true, paid: false, note: 'token introuvable' });
+        payRef = q.docs[0].ref; docData = q.docs[0].data() || {};
+      } else {
+        return res.status(400).json({ error: 'ref ou token requis' });
+      }
+
+      // Déjà crédité/payé côté base → on répond "payé" immédiatement (aucun appel réseau)
+      if (docData.status === 'credited' || docData.status === 'paid') {
+        return res.status(200).json({ ok: true, paid: true, status: docData.status, purpose: docData.purpose || 'wallet' });
+      }
+
+      const token = docData.token || String(p.token || '');
+      if (!token) return res.status(200).json({ ok: true, paid: false, note: 'token manquant' });
+
+      // Interroge MoneyFusion : GET paiementNotif/{token}
+      let mf = {};
+      try {
+        const r = await fetch(MF_VERIFY + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
+        mf = await r.json().catch(() => ({}));
+      } catch (e) {
+        return res.status(200).json({ ok: true, paid: false, note: 'vérif indisponible: ' + e.message });
+      }
+      const dd = (mf && mf.data && typeof mf.data === 'object') ? mf.data : mf;
+      const statut = (dd && (dd.statut || dd.status)) || '';
+
+      if (isPaidStatus(statut)) {
+        const r2 = await applyPaid(db, FieldValue, payRef, BASE);
+        return res.status(200).json({ ok: true, paid: true, credited: !!(r2 && r2.done), purpose: docData.purpose || 'wallet' });
+      }
+      // Pas encore payé (pending / no paid / failure)
+      return res.status(200).json({ ok: true, paid: false, status: String(statut || '').toLowerCase() });
+    }
+
+    // ─────────────── 3) WEBHOOK MoneyFusion (filet de sécurité) ───────────────
     const d0 = (p.data && typeof p.data === 'object') ? p.data : p;
     const statut = String(d0.statut || d0.status || '').toLowerCase();
     const token = d0.tokenPay || d0.token || p.token || '';
@@ -123,62 +239,10 @@ module.exports = async (req, res) => {
       if (!q.empty) payRef = q.docs[0].ref;
     }
     if (!payRef) return res.status(200).json({ ok: true, ignored: 'ref/token introuvable' });
-    // On ne crédite QUE si le paiement est réussi (jamais sur pending/failure)
-    if (!(statut === 'paid' || statut === 'success' || statut === 'completed' || statut === 'succes' || statut === 'réussi')) {
+    if (!isPaidStatus(statut)) {
       return res.status(200).json({ ok: true, statut });
     }
-
-    let credited = 0, target = '', kind = '', paidOrderId = '';
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(payRef);
-      if (!snap.exists) return;
-      const d = snap.data() || {};
-      if (d.status === 'credited' || d.status === 'paid') return; // déjà traité (anti-doublon)
-      const uid = d.uid, amountEur = +d.amountEur || 0, purpose = d.purpose || 'wallet', orderId = d.orderId || '';
-      if (!uid) return;
-      if (purpose === 'order' && orderId) {
-        tx.set(db.collection('orders').doc(orderId), {
-          status: 'paid', paymentMethod: 'MoneyFusion', paymentRef: payRef.id, paidAt: FieldValue.serverTimestamp()
-        }, { merge: true });
-        tx.set(payRef, { status: 'paid', creditedAt: FieldValue.serverTimestamp() }, { merge: true });
-        kind = 'order'; paidOrderId = orderId; target = uid;
-      } else {
-        if (amountEur <= 0) return;
-        tx.set(db.collection('users').doc(uid), { walletBalance: FieldValue.increment(amountEur) }, { merge: true });
-        tx.set(db.collection('users').doc(uid).collection('walletHistory').doc(), {
-          amount: amountEur, type: 'credit', note: 'Recharge MoneyFusion', method: 'MoneyFusion',
-          ref: payRef.id, createdAt: FieldValue.serverTimestamp()
-        });
-        tx.set(payRef, { status: 'credited', creditedAt: FieldValue.serverTimestamp() }, { merge: true });
-        kind = 'wallet'; credited = amountEur; target = uid;
-      }
-    });
-
-    // Livraison automatique après paiement d'une commande
-    if (kind === 'order' && paidOrderId) {
-      try {
-        await fetch(BASE + '/api/flashtopup-deliver', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: paidOrderId })
-        }).catch(() => {});
-      } catch (e) {}
-    }
-    // Notification + push au client
-    if (target) {
-      try {
-        const note = (kind === 'order')
-          ? { icon: '✅', title: 'Paiement reçu', body: 'Votre commande est payée (MoneyFusion). Livraison en cours.', type: 'order', link: 'orders' }
-          : { icon: '💰', title: 'Portefeuille rechargé', body: 'Votre recharge de ' + credited.toFixed(2) + ' € (MoneyFusion) a été créditée.', type: 'wallet', link: 'wallet' };
-        note.read = false; note.createdAt = FieldValue.serverTimestamp();
-        await db.collection('users').doc(target).collection('notifications').add(note);
-        try {
-          await fetch(BASE + '/api/send-push', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: target, title: (note.icon || '🔔') + ' ' + note.title, body: note.body, url: '/' })
-          });
-        } catch (e) {}
-      } catch (e) {}
-    }
+    await applyPaid(db, FieldValue, payRef, BASE);
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
