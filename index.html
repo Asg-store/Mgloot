@@ -7875,9 +7875,12 @@ function _mfResumePending(fromReturn){
   }
   poll();
 }
-// Reprise auto : au chargement de l'app, et chaque fois que l'onglet redevient visible.
+// Reprise auto : au chargement, au retour dans l'onglet, et au retour arrière
+// (bouton « retour » ou × sur la page MoneyFusion → l'app se ré-affiche).
 window.addEventListener('load',function(){ setTimeout(function(){ try{_mfResumePending(false);}catch(e){} },2500); });
 document.addEventListener('visibilitychange',function(){ if(!document.hidden){ try{_mfResumePending(false);}catch(e){} } });
+window.addEventListener('pageshow',function(){ setTimeout(function(){ try{_mfResumePending(false);}catch(e){} },800); });
+window.addEventListener('focus',function(){ try{_mfResumePending(false);}catch(e){} });
 
 /* 🎁 Objectif et récompense de parrainage — réglables par l'admin
    dans config/shop (inviteGoal / inviteReward). Valeurs par défaut : 10 / 500. */
