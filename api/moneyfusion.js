@@ -40,9 +40,9 @@ const MF_URL = (process.env.MONEYFUSION_API_URL || 'https://pay.moneyfusion.net/
 const MF_VERIFY_CANDIDATES = (process.env.MONEYFUSION_VERIFY_URL
   ? [process.env.MONEYFUSION_VERIFY_URL]
   : [
-      'https://www.pay.moneyfusion.net/paiementNotif/',
-      'https://pay.moneyfusion.net/paiementNotif/',
-      'https://api.moneyfusion.net/paiementNotif/'
+      'https://pay.moneyfusion.net/paiementNotif/',      // ✅ joignable depuis Vercel (~0,3 s)
+      'https://www.pay.moneyfusion.net/paiementNotif/',  // repli
+      'https://api.moneyfusion.net/paiementNotif/'        // repli
     ]
 ).map(u => u.replace(/\/*$/, '/'));
 
@@ -296,4 +296,3 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 };
-                                                  
