@@ -978,12 +978,13 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
   <div class="panel">
     <div class="panel-top"><span class="panel-title">💱 Taux de change (devises)</span></div>
     <div style="padding:16px">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Base = Euro (€). Ces taux servent à afficher les prix côté client en $ et en XOF. Le client choisit sa devise dans ses réglages.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Base = Euro (€). Ces taux servent à afficher les prix côté client en €, $ et XOF. Le client choisit sa devise dans ses réglages.</p>
       <div class="f-row">
+        <div class="form-grp"><label>💶 Euro (€) — devise de base</label><input class="inp" id="cfg-rate-eur" type="number" value="1" disabled style="opacity:.6"/></div>
         <div class="form-grp"><label>1 € = ? Dollars ($)</label><input class="inp" id="cfg-rate-usd" type="number" step="0.0001" min="0" placeholder="1.16"/></div>
         <div class="form-grp"><label>1 € = ? Francs CFA (XOF)</label><input class="inp" id="cfg-rate-xof" type="number" step="0.001" min="0" placeholder="655.957"/></div>
       </div>
-      <span class="hint">💡 Le Franc CFA (XOF) est fixé à <b>655,957</b> pour 1 € (ne change presque jamais). Modifie surtout le taux du <b>Dollar</b> quand il évolue. Laisse vide pour garder la valeur par défaut.</span>
+      <span class="hint">💡 L'<b>Euro (€)</b> est la devise de base (toujours 1). Le <b>Franc CFA (XOF)</b> est fixé à <b>655,957</b> pour 1 € (ne change presque jamais). Modifie surtout le taux du <b>Dollar</b> quand il évolue. Laisse vide pour garder la valeur par défaut.</span>
       <button class="save-btn" style="margin-top:12px" onclick="saveConfig()">💾 Enregistrer les taux</button>
     </div>
   </div>
@@ -1597,6 +1598,7 @@ body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
         <select class="inp inp-sel" id="f-hot"><option value="false">Non</option><option value="true">✓ HOT</option></select>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px;color:var(--text2)"><input type="checkbox" id="f-closed"/> ⛔ Fermer ce produit (affiché « Indisponible », achat bloqué)</label>
     <div class="f-row">
       <div class="form-grp"><label>Jeu</label>
         <select class="inp inp-sel" id="f-game">
@@ -2964,6 +2966,7 @@ function clearForm(){
   ['f-id','f-name','f-price','f-orig','f-disc','f-stock','f-img','f-emo','f-desc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-cat').value='';
   document.getElementById('f-hot').value='false';
+  if(document.getElementById('f-closed'))document.getElementById('f-closed').checked=false;
   document.getElementById('f-status').value='active';
   document.getElementById('f-game').value='';
   var _fs=document.getElementById('f-sancay');if(_fs)_fs.value='';
@@ -2994,6 +2997,7 @@ function editProd(id){
   document.getElementById('f-emo').value=p.emoji||'';
   document.getElementById('f-desc').value=p.description||'';
   document.getElementById('f-hot').value=p.featured?'true':'false';
+  if(document.getElementById('f-closed'))document.getElementById('f-closed').checked=!!p.closed;
   document.getElementById('f-status').value=p.status||'active';
   document.getElementById('f-game').value=p.game||'';
   document.getElementById('f-fzrcat').value=p.fzrCat||'';
@@ -3019,6 +3023,7 @@ async function saveProduct(){
     emoji:document.getElementById('f-emo').value.trim()||'🎮',
     description:document.getElementById('f-desc').value.trim()||'',
     featured:document.getElementById('f-hot').value==='true',
+    closed:!!(document.getElementById('f-closed')&&document.getElementById('f-closed').checked),
     status:document.getElementById('f-status').value||'active',
     pointsBuyable:document.getElementById('f-pts-on').value==='true',
     pointsCost:parseInt(document.getElementById('f-pts-cost').value)||0,
@@ -3515,6 +3520,17 @@ async function aoUploadPhotos(e){
   aoRenderThumbs();
   if(aoMedia.length)toast('✅ '+aoMedia.length+' média(s) prêt(s)');
 }
+// 📤 Upload du logo d'un jeu depuis la galerie (via ImgBB)
+async function uploadGameLogo(key){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=async function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    toast('⏳ Envoi du logo…');
+    try{var url=await imgbbUpload(f);var el=document.getElementById('ga-url-'+key);if(el)el.value=url;toast('✅ Logo importé (cliquez Enregistrer)');}
+    catch(e){toast('❌ '+(e.message||'Échec upload'),true);}
+  };
+  inp.click();
+}
 function imgbbUpload(file){
   return new Promise(function(resolve,reject){
     var fr=new FileReader();
@@ -3943,18 +3959,39 @@ async function deleteAcc(id){
 
 /* ══ MESSAGERIE ADMIN ↔ CLIENT ══ */
 let convUnsub=null,curConvUid=null;
+// 🔵 Certificat VIP côté admin (photo + badge du client dans la liste des messages)
+var _admShop=null;
+async function _admGetShop(){ if(_admShop)return _admShop; try{var d=await db.collection('config').doc('shop').get();_admShop=(d.exists&&d.data())||{};}catch(e){_admShop={};} return _admShop; }
+function _admVipIdx(totalSpent){
+  var cfg=_admShop||{};var tiers=cfg.vipTiers;var rate=+cfg.vipExpPerEur||100;var exp=(+totalSpent||0)*rate;
+  if(!Array.isArray(tiers)||!tiers.length)return 0;
+  var idx=0;for(var i=0;i<tiers.length;i++){var mn=(i===0?0:+tiers[i].min||0);if(exp>=mn)idx=i;}return idx;
+}
+function _admCertColor(idx){var m={5:'#c0c0c0',6:'#9aa0a6',7:'#d9c7a3',8:'#c4b5fd',9:'#a3e635',10:'#1d9bf6'};return m[idx]||null;}
+function _admCert(color,size){if(!color)return '';size=size||14;return '<svg viewBox="0 0 24 24" width="'+size+'" height="'+size+'" style="vertical-align:middle;display:inline-block;margin-left:3px"><path fill="'+color+'" d="M23 12l-2.44-2.78.34-3.68-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.72l-3.61.81.34 3.68L1 12l2.44 2.78-.34 3.69 3.61.82L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.22 3.61-.82-.34-3.68z"/><path fill="#fff" d="M10.09 16.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.34-5.36 1.48 1.48z"/></svg>';}
 async function loadConversations(){
   const el=document.getElementById('conv-list');
   try{
+    await _admGetShop();
     let snap;
     try{snap=await db.collection('chats').orderBy('updatedAt','desc').get();}
     catch(e){snap=await db.collection('chats').get();}
     if(snap.empty){el.innerHTML='<div class="list-empty"><div class="ico">💬</div><p>Aucune conversation</p></div>';return;}
-    el.innerHTML=snap.docs.map(d=>{const c=d.data();const u=c.unreadAdmin||0;return`
+    // Récupère photo + niveau VIP de chaque client (en parallèle)
+    const users=await Promise.all(snap.docs.map(async d=>{
+      try{var ud=await db.collection('users').doc(d.id).get();return ud.exists?(ud.data()||{}):{};}catch(e){return {};}
+    }));
+    el.innerHTML=snap.docs.map((d,i)=>{
+      const c=d.data();const u=c.unreadAdmin||0;const ud=users[i]||{};
+      const photo=ud.photoURL||'';const idx=_admVipIdx(ud.totalSpent||0);const cert=_admCertColor(idx);
+      const av=photo
+        ? `<img src="${aEsc(photo)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">${aEsc((c.userName||'?').charAt(0).toUpperCase())}</div>`;
+      return `
       <div class="order-summary" style="display:flex;gap:12px;align-items:center;margin-bottom:8px;cursor:pointer" onclick="openConv('${d.id}')">
-        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">${aEsc((c.userName||'?').charAt(0).toUpperCase())}</div>
+        ${av}
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${aEsc(c.userName||'Client')}</div>
+          <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center">${aEsc(c.userName||'Client')}${_admCert(cert,14)}</div>
           <div style="font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${aEsc(c.lastMsg||'…')}</div>
         </div>
         ${u>0?`<span style="background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px">${u}</span>`:''}
@@ -3964,7 +4001,14 @@ async function loadConversations(){
 function openConv(uid){
   curConvUid=uid;
   const c=db.collection('chats').doc(uid);
-  c.get().then(d=>{const v=d.data()||{};document.getElementById('msg-title').textContent=v.userName||'Conversation';});
+  c.get().then(async d=>{
+    const v=d.data()||{};var t=document.getElementById('msg-title');if(!t)return;
+    var ud={};try{await _admGetShop();var us=await db.collection('users').doc(uid).get();ud=us.exists?(us.data()||{}):{};}catch(e){}
+    var photo=ud.photoURL||'';var cert=_admCertColor(_admVipIdx(ud.totalSpent||0));
+    var av=photo?'<img src="'+aEsc(photo)+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px">'
+      :'<span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:12px;vertical-align:middle;margin-right:8px">'+aEsc((v.userName||'?').charAt(0).toUpperCase())+'</span>';
+    t.innerHTML=av+aEsc(v.userName||'Conversation')+_admCert(cert,15);
+  });
   c.update({unreadAdmin:0}).catch(()=>{});
   const thread=document.getElementById('msg-thread');
   thread.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Chargement…</div>';
@@ -4164,7 +4208,10 @@ async function loadGamesAdmin(){
         <div class="form-grp"><label>Couleur 1</label><input class="inp" id="ga-c1-${key}" type="color" value="${g.c1}" style="height:42px;padding:4px"/></div>
         <div class="form-grp"><label>Couleur 2</label><input class="inp" id="ga-c2-${key}" type="color" value="${g.c2}" style="height:42px;padding:4px"/></div>
       </div>
-      <div class="form-grp"><label>URL du logo</label><input class="inp" id="ga-url-${key}" type="url" value="${aEsc(g.logoUrl)}" placeholder="https://…"/></div>
+      <div class="form-grp"><label>Logo du jeu</label>
+        <button type="button" class="save-btn" style="margin:0 0 8px;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="uploadGameLogo('${key}')">📤 Importer depuis la galerie</button>
+        <input class="inp" id="ga-url-${key}" type="url" value="${aEsc(g.logoUrl)}" placeholder="…ou collez une URL https://…"/></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 8px;color:var(--text2)"><input type="checkbox" id="ga-closed-${key}" ${g.closed?'checked':''}/> ⛔ Fermer ce jeu (affiché « Indisponible »)</label>
       <div style="display:flex;gap:8px">
         <button class="btn-ok" style="flex:1" onclick="saveGame('${key}')">💾 Enregistrer</button>
         <button class="btn-del" style="width:auto;padding:0 16px" onclick="deleteGame('${key}',${isDefault})">🗑️</button>
@@ -4180,7 +4227,8 @@ async function saveGame(key){
     sub:get('ga-sub').value.trim()||'',
     c1:get('ga-c1').value||'#7c3aed',
     c2:get('ga-c2').value||'#00d4ff',
-    logoUrl:get('ga-url').value.trim()||''
+    logoUrl:get('ga-url').value.trim()||'',
+    closed:!!(get('ga-closed')&&get('ga-closed').checked)
   };
   try{
     await db.collection('games').doc(key).set(data,{merge:true});

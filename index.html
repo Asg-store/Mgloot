@@ -280,6 +280,9 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);
 #products-grid.list-view{grid-template-columns:1fr}
 
 /* PRODUCT CARD */
+.unavail-stamp{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);background:rgba(20,20,25,.5);color:#fff;font-weight:900;font-size:14px;letter-spacing:1px;padding:4px 14px;border:2px solid rgba(255,255,255,.85);border-radius:8px;text-transform:uppercase;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.4);z-index:4;pointer-events:none}
+.card-img-wrap.dim img,.card-img-wrap.dim .card-placeholder,.game-logo.dim img,.gcat-imgwrap.dim img,.gcat-imgwrap.dim .gcat-ph{filter:grayscale(.75) brightness(.55)}
+.game-card.closed{position:relative}
 .product-card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;
@@ -887,6 +890,21 @@ footer{
 .soc-n{font-weight:800;font-size:15px;color:var(--text);line-height:1.2;overflow:hidden;text-overflow:ellipsis}
 .soc-card{min-width:0;overflow:hidden}
 /* ⚡ Bannière Offre Flash — animation premium */
+/* 🎠 Carrousel héro (Offres Flash + Bannière sur la même ligne, auto-balayage) */
+.hero-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-behavior:smooth;gap:0}
+.hero-carousel::-webkit-scrollbar{display:none}
+.hero-slide{min-width:100%;scroll-snap-align:center;flex-shrink:0;box-sizing:border-box}
+.hero-dots{display:flex;gap:6px;justify-content:center;margin:8px 0 14px}
+.hero-dots span{width:7px;height:7px;border-radius:99px;background:var(--border);transition:all .3s}
+.hero-dots span.on{background:var(--accent);width:20px}
+/* ✨ Bannière animée (dégradé mouvant + reflet + flottement) */
+#banner{position:relative;overflow:hidden;background:linear-gradient(120deg,#00b0ff,#3b6fff,#7c3aed,#00b0ff);background-size:260% 260%;animation:bannShift 9s ease infinite}
+#banner::after{content:'';position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:translateX(-140%) skewX(-18deg);animation:bannSheen 5.5s ease-in-out infinite}
+#banner #banner-text{position:relative;z-index:1;animation:bannFloat 4s ease-in-out infinite}
+#banner .btn-promo{position:relative;z-index:1}
+@keyframes bannShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes bannSheen{0%{transform:translateX(-140%) skewX(-18deg)}55%,100%{transform:translateX(260%) skewX(-18deg)}}
+@keyframes bannFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes flashIn{0%{opacity:0;transform:translateY(-18px) scale(.94)}55%{opacity:1;transform:translateY(3px) scale(1.015)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes flashGradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes flashGlow{0%,100%{box-shadow:0 6px 20px rgba(255,60,60,.35)}50%{box-shadow:0 10px 34px rgba(255,75,43,.6),0 0 22px 2px rgba(255,150,80,.35)}}
@@ -1323,14 +1341,17 @@ body.ios .pnotif .pn-ic{border-radius:11px}
 <!-- MAIN -->
 <main id="main">
   <!-- ⚡ Bannière offre flash — ACCUEIL (l'autre est dans l'écran Catalogue) -->
-  <div id="flash-banner-home" style="display:none"></div>
-  <div id="banner">
-    <div id="banner-text">
-      <h2 id="banner-title">🔥 Deals Gaming — -70%</h2>
-      <p id="banner-sub">Top-Up</p>
+  <div class="hero-carousel" id="hero-carousel">
+    <div class="hero-slide" id="flash-banner-home" style="display:none"></div>
+    <div class="hero-slide" id="banner">
+      <div id="banner-text">
+        <h2 id="banner-title">🔥 Deals Gaming — -70%</h2>
+        <p id="banner-sub">Top-Up</p>
+      </div>
+      <a href="#" class="btn-promo">Voir</a>
     </div>
-    <a href="#" class="btn-promo">Voir</a>
   </div>
+  <div class="hero-dots" id="hero-dots"></div>
 
   <!-- GAME CATALOGUE (public, visible avant connexion) -->
   <div class="games-block">
@@ -2264,7 +2285,7 @@ body.ios .pnotif .pn-ic{border-radius:11px}
       <div class="set-row"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><div class="set-txt"><div class="set-name">Version de l'application</div><div class="set-desc" id="about-version">MgLoot v3</div></div></div>
       <div class="set-row"><div class="set-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="set-txt"><div class="set-name">Horaires du support</div><div class="set-desc">8h – 18h · Livraison 24h/24</div></div></div>
       <div class="set-row" onclick="checkForUpdates()"><div class="set-ico"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div><div class="set-txt"><div class="set-name">Vérifier les mises à jour</div><div class="set-desc">Rechercher une nouvelle version</div></div><span class="set-arrow">›</span></div>
-      <div class="set-row" onclick="openChat()"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></div><div class="set-txt"><div class="set-name">Contact</div><div class="set-desc">lootrcc@gmail.com</div></div><span class="set-arrow">›</span></div>
+      <div class="set-row" onclick="location.href='mailto:mgloote@gmail.com'"><div class="set-ico"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></div><div class="set-txt"><div class="set-name">Contact</div><div class="set-desc">mgloote@gmail.com</div></div><span class="set-arrow">›</span></div>
     </div>
     <div class="settings-group">
       <div class="settings-group-label">Aide & documents</div>
@@ -2653,6 +2674,7 @@ body.ios .pnotif .pn-ic{border-radius:11px}
 const firebaseConfig = {
   apiKey: "AIzaSyBj9sHzNDjH3aPLK4LC42s2mqwsDgbd38g",
   authDomain: "mglooti.firebaseapp.com",
+  databaseURL: "https://mglooti-default-rtdb.firebaseio.com",
   projectId: "mglooti",
   storageBucket: "mglooti.firebasestorage.app",
   messagingSenderId: "156127950943",
@@ -2664,7 +2686,7 @@ const auth=firebase.auth();
 let storage=null;try{storage=firebase.storage();}catch(e){}
 // 🔔 Cloud Messaging (notifications système en arrière-plan)
 // ⚠️ Collez ici votre clé VAPID : Firebase Console → Paramètres du projet → Cloud Messaging → Configuration Web → "Certificats push Web" → générer une paire de clés.
-const FCM_VAPID_KEY="BG19g4eYfuwhvkpjn9N5hTcY7h9YV_A9j5kb8jONkPx2Bx6R1WKa6qtrjl3N7rxOLmU1uTAdLHDcndozHc4ahHo";  // 🔔 clé VAPID (Firebase → Cloud Messaging → Certificats Web push)
+const FCM_VAPID_KEY="BIKrUL99hByYHTfopdqms2fXwcq7zsLzyL03qNcQvqQyocR7nPdlR2ya67XLRCX44IR99542lCRGjWP0u1LAwJg";  // 🔔 clé VAPID (Firebase → Cloud Messaging → Certificats Web push)
 let messaging=null;try{if(firebase.messaging.isSupported())messaging=firebase.messaging();}catch(e){}
 
 let allProducts=[],cart=JSON.parse(localStorage.getItem('nex-cart')||'[]');
@@ -2778,6 +2800,7 @@ function wrapEmoji(root){
     }catch(e){}
   }
   if(document.readyState!=='loading')start();else document.addEventListener('DOMContentLoaded',start);
+  try{setTimeout(function(){try{startHeroCarousel();}catch(e){}},1800);}catch(e){}
 })();
 let shopConfig={deliveryFeeType:'none',deliveryFeeValue:0};
 async function loadConfig(){
@@ -4303,6 +4326,39 @@ function applyFontSize(v,save){
 async function editProfileName(){
   if(!currentUser){openAuthModal();return;}
   var cur=currentUser.displayName||'';
+  var old=document.getElementById('name-edit-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='name-edit-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  ov.innerHTML='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:22px 20px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4)">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="font-size:26px">✏️</span><div style="font-weight:800;font-size:17px">Modifier mon nom</div></div>'
+    +'<input id="name-edit-inp" value="'+String(cur).replace(/"/g,'&quot;')+'" placeholder="Votre prénom et nom" maxlength="40" style="width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);font-size:15px;box-sizing:border-box"/>'
+    +'<div id="name-edit-err" style="color:#ff3b5c;font-size:12px;min-height:14px;margin-top:4px"></div>'
+    +'<div style="display:flex;gap:10px;margin-top:12px">'
+    +'<button onclick="document.getElementById(\'name-edit-ov\').remove()" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text2);font-weight:700;cursor:pointer">Annuler</button>'
+    +'<button id="name-edit-save" onclick="saveProfileName()" style="flex:1;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#00b0ff,#7c3aed);color:#fff;font-weight:800;cursor:pointer">Enregistrer</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){var i=document.getElementById('name-edit-inp');if(i){i.focus();i.select();}},100);
+}
+async function saveProfileName(){
+  var inp=document.getElementById('name-edit-inp');if(!inp)return;
+  var nn=(inp.value||'').trim();var er=document.getElementById('name-edit-err');
+  if(nn.length<2){if(er)er.textContent='Nom trop court (2 caractères min).';return;}
+  var btn=document.getElementById('name-edit-save');if(btn){btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> …';}
+  try{
+    await currentUser.updateProfile({displayName:nn});
+    await db.collection('users').doc(currentUser.uid).set({name:nn,profileAt:Date.now()},{merge:true});
+    if(userData)userData.profileAt=Date.now();
+    updateAuthUI(currentUser);
+    try{refreshProfileUI();}catch(e){}
+    var e2=document.getElementById('name-edit-ov');if(e2)e2.remove();
+    showToast('✅ Nom mis à jour !');
+  }catch(e){if(er)er.textContent=e.message||'Erreur';if(btn){btn.disabled=false;btn.textContent='Enregistrer';}}
+}
+async function _editProfileName_OLD(){
+  if(!currentUser){openAuthModal();return;}
+  var cur=currentUser.displayName||'';
   var nn=prompt('Votre nouveau nom :',cur);
   if(nn==null)return; nn=nn.trim();
   if(nn.length<2){showToast('❌ Nom trop court');return;}
@@ -5058,18 +5114,18 @@ function renderProducts(){
     const img=p.imageUrl
       ?`<img src="${p.imageUrl}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=card-placeholder>${p.emoji||'🎮'}</div>'">`
       :`<div class="card-placeholder">${p.emoji||'🎮'}</div>`;
-    return`<div class="product-card" data-id="${p.id}">
-      <div class="card-img-wrap">${img}${discB}${hotB}</div>
+    return`<div class="product-card${p.closed?' is-closed':''}" data-id="${p.id}">
+      <div class="card-img-wrap${p.closed?' dim':''}">${img}${discB}${hotB}</div>
       <div class="card-body">
         <div class="card-cat">${p.category||'Général'}</div>
         <div class="card-name">${p.name}</div>
         <div class="card-footer">
           <div><div class="card-price">${fmtMoney(price)}</div>${orig}</div>
-          <button class="btn-add" data-id="${p.id}">
+          <button class="btn-add" data-id="${p.id}" ${p.closed?'disabled style="opacity:.35;cursor:not-allowed"':''}>
             <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
-        ${ptsBtn}
+        ${p.closed?'':ptsBtn}
       </div>
     </div>`;
   }).join('');
@@ -5579,6 +5635,61 @@ async function confirmResetCode(){
 }
 
 // Email auth
+/* 📧 Vérification email à l'inscription (code à 4 chiffres) */
+var _pendingSignup=null;
+function showSignupCodeScreen(email){
+  var old=document.getElementById('su-code-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='su-code-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:22px';
+  ov.innerHTML='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px 20px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.4)">'
+    +'<div style="font-size:42px">📧</div>'
+    +'<div style="font-weight:800;font-size:18px;margin-top:6px">Vérifiez votre e-mail</div>'
+    +'<div style="font-size:12.5px;color:var(--text2);margin-top:6px;line-height:1.5">Un code à 4 chiffres a été envoyé à<br><b>'+email+'</b></div>'
+    +'<input id="su-code" inputmode="numeric" maxlength="4" placeholder="0000" style="width:160px;text-align:center;letter-spacing:10px;font-size:26px;font-weight:800;margin:16px auto 6px;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);display:block"/>'
+    +'<div id="su-err" style="color:#ff3b5c;font-size:12px;min-height:16px;margin-bottom:6px"></div>'
+    +'<button id="su-verify-btn" onclick="verifySignupCode()" style="width:100%;padding:14px;border:none;border-radius:12px;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(135deg,#00b0ff,#7c3aed);cursor:pointer">Vérifier et créer mon compte</button>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px">'
+    +'<span onclick="closeSignupCode()" style="color:var(--text3);cursor:pointer">← Annuler</span>'
+    +'<span onclick="resendSignupCode()" style="color:var(--accent);cursor:pointer;font-weight:700">Renvoyer le code</span></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){var i=document.getElementById('su-code');if(i)i.focus();},100);
+}
+function closeSignupCode(){var e=document.getElementById('su-code-ov');if(e)e.remove();}
+async function resendSignupCode(){
+  if(!_pendingSignup)return;
+  var er=document.getElementById('su-err');if(er)er.textContent='';
+  try{
+    var r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-send',email:_pendingSignup.email,name:_pendingSignup.name})});
+    var d=await r.json().catch(function(){return {};});
+    if(d&&d.ok)showToast('📧 Nouveau code envoyé');else if(er)er.textContent=(d&&d.error)||'Échec de l\'envoi.';
+  }catch(e){if(er)er.textContent='Erreur réseau.';}
+}
+async function verifySignupCode(){
+  if(!_pendingSignup)return;
+  var code=(document.getElementById('su-code').value||'').replace(/\D/g,'');
+  var er=document.getElementById('su-err');if(er)er.textContent='';
+  if(code.length!==4){if(er)er.textContent='Entrez le code à 4 chiffres.';return;}
+  var btn=document.getElementById('su-verify-btn');if(btn){btn.disabled=true;btn.innerHTML='<span class="btn-spinner"></span> Vérification…';}
+  try{
+    var r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-verify',email:_pendingSignup.email,code:code})});
+    var d=await r.json().catch(function(){return {};});
+    if(!(d&&d.verified)){if(er)er.textContent=(d&&d.error)||'Code incorrect.';if(btn){btn.disabled=false;btn.textContent='Vérifier et créer mon compte';}return;}
+    // ✅ Code validé → on crée le compte pour de vrai
+    var cred=await auth.createUserWithEmailAndPassword(_pendingSignup.email,_pendingSignup.password);
+    await cred.user.updateProfile({displayName:_pendingSignup.name});
+    await cred.user.reload();
+    if(_pendingSignup.phone){try{await db.collection('users').doc(cred.user.uid).set({phone:_pendingSignup.phone,emailVerified:true},{merge:true});}catch(e){}}
+    await saveUserToFirestore(cred.user);
+    updateAuthUI(cred.user);
+    var nm=_pendingSignup.name;_pendingSignup=null;
+    closeSignupCode();closeAuthModal();
+    showToast('🎉 Bienvenue, '+nm+'! Email vérifié ✅');
+  }catch(e){
+    if(er)er.textContent=(typeof authErrorMsg==='function'?authErrorMsg(e.code):'')||e.message||'Erreur';
+    if(btn){btn.disabled=false;btn.textContent='Vérifier et créer mon compte';}
+  }
+}
 async function doEmailAuth(){
   clearAuthError();
   const email=document.getElementById('auth-email').value.trim();
@@ -5590,20 +5701,18 @@ async function doEmailAuth(){
   if(authMode==='register'){
     const name=document.getElementById('auth-name').value.trim();
     const confirm=document.getElementById('auth-confirm').value;
+    const phone=(document.getElementById('auth-phone')?document.getElementById('auth-phone').value.trim():'');
     if(!name){showAuthError('Veuillez entrer votre nom.');return;}
     if(password!==confirm){showAuthError('Les mots de passe ne correspondent pas.');return;}
     setAuthLoading(true);
     try{
-      const cred=await auth.createUserWithEmailAndPassword(email,password);
-      await cred.user.updateProfile({displayName:name});
-      await cred.user.reload(); // forcer la mise à jour du profil
-      await saveUserToFirestore(cred.user);
-      updateAuthUI(cred.user);
-      closeAuthModal();
-      showToast('🎉 Bienvenue, '+name+'!');
-    }catch(e){
-      showAuthError(authErrorMsg(e.code));
-    }finally{setAuthLoading(false);}
+      const r=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signup-send',email:email,name:name})});
+      const d=await r.json().catch(function(){return {};});
+      if(!(d&&d.ok)){showAuthError((d&&d.error)||'Envoi du code impossible.');setAuthLoading(false);return;}
+      _pendingSignup={name:name,email:email,password:password,phone:phone};
+      setAuthLoading(false);
+      showSignupCodeScreen(email);
+    }catch(e){showAuthError('Erreur réseau — réessayez.');setAuthLoading(false);}
   } else {
     setAuthLoading(true);
     try{
@@ -6124,9 +6233,9 @@ function renderGamesCatalog(grid){
     const maxDisc=prods.reduce((m,p)=>Math.max(m,+p.discount||0),0);
     const discB=maxDisc>0?`<div class="gcat-disc">-${maxDisc}%</div>`:'';
     const cnt=prods.length;
-    return`<div class="gcat-card" onclick="filterByGame('${g.key}')">${discB}${gcatImg(g)}
+    return`<div class="gcat-card${g.closed?' is-closed':''}" onclick="${g.closed?'showToast(\'⛔ Ce jeu est indisponible pour le moment\')':'filterByGame(\''+g.key+'\')'}">${discB}<div class="gcat-imgwrap${g.closed?' dim':''}" style="position:relative">${gcatImg(g)}${g.closed?'<div class="unavail-stamp">Indisponible</div>':''}</div>
       <div class="gcat-b"><div class="gcat-name">${g.name}</div>
-      <div class="gcat-meta"><span class="gcat-star">★ 5.0</span>${cnt?`<span>· ${cnt} offre${cnt>1?'s':''}</span>`:''}</div></div></div>`;
+      <div class="gcat-meta">${g.closed?'<span style="color:#ff5a5a;font-weight:700">⛔ Indisponible</span>':`<span class="gcat-star">★ 5.0</span>${cnt?`<span>· ${cnt} offre${cnt>1?'s':''}</span>`:''}`}</div></div></div>`;
   }).join('');
 }
 // En-tête d'un jeu (type "PUBG MOBILE Top Up" + badges)
@@ -7510,6 +7619,7 @@ function loadFlash(){
       });
     _flashAd=list[0]||null;
     renderFlash();
+    try{startHeroCarousel();}catch(e){}
   },function(err){console.warn('[flash]',err&&err.message);});
 }
 // Toutes les zones où la bannière flash peut apparaître (accueil + catalogue)
@@ -7517,6 +7627,32 @@ function flashSlots(){
   return ['flash-banner-home','flash-banner']
     .map(function(id){return document.getElementById(id);})
     .filter(Boolean);
+}
+// 🎠 Carrousel héro : auto-balayage toutes les 10s entre Offres Flash et Bannière
+var _heroTimer=null;
+function heroSlides(){
+  var car=document.getElementById('hero-carousel');if(!car)return [];
+  return Array.prototype.filter.call(car.children,function(s){return s.style.display!=='none'&&s.offsetParent!==null;});
+}
+function updateHeroDots(){
+  var dots=document.getElementById('hero-dots'),car=document.getElementById('hero-carousel');if(!dots||!car)return;
+  var slides=heroSlides();
+  if(slides.length<=1){dots.innerHTML='';return;}
+  var cur=Math.round(car.scrollLeft/(car.clientWidth||1));
+  dots.innerHTML=slides.map(function(_,i){return '<span class="'+(i===cur?'on':'')+'"></span>';}).join('');
+}
+function startHeroCarousel(){
+  var car=document.getElementById('hero-carousel');if(!car)return;
+  if(_heroTimer){clearInterval(_heroTimer);_heroTimer=null;}
+  car.onscroll=function(){clearTimeout(car._st);car._st=setTimeout(updateHeroDots,120);};
+  updateHeroDots();
+  _heroTimer=setInterval(function(){
+    var slides=heroSlides();if(slides.length<=1)return;
+    var w=car.clientWidth||1;var cur=Math.round(car.scrollLeft/w);
+    var next=(cur+1)%slides.length;
+    car.scrollTo({left:next*w,behavior:'smooth'});
+    setTimeout(updateHeroDots,400);
+  },10000);
 }
 function renderFlash(){
   var els=flashSlots();if(!els.length)return;
@@ -7526,7 +7662,7 @@ function renderFlash(){
   var esc=function(v){return String(v==null?'':v).replace(/</g,'&lt;');};
   var end=(_flashAd.endsAt&&_flashAd.endsAt.toMillis)?_flashAd.endsAt.toMillis():0;
   var sig=(_flashAd.title||'')+'|'+(_flashAd.body||'')+'|'+(_flashAd.discount||'')+'|'+end;
-  var css='position:relative;overflow:hidden;display:block;border-radius:16px;padding:14px 16px;margin-bottom:14px;color:#fff';
+  var css='position:relative;overflow:hidden;display:block;border-radius:16px;padding:14px 16px;margin-bottom:0;color:#fff';
   // ✨ étincelles flottantes (générées une seule fois par offre)
   var buildSparks=function(){
     var SP=['✨','⚡','✦','✨','·','✦'],out='';
@@ -7702,7 +7838,6 @@ async function spinWheel(){
         if(_mfPaid)return;
         _mfTries++;
         if(!_mfRef){
-          // Pas de ref → repli sur l'ancienne détection par variation de solde
           if(_mfTarget==='buy'){ var _b=+((userData&&userData.walletBalance)||0); if(_b>_bal0+0.001){_mfPaid=true;_mfFinish();return;} }
           if(_mfTries>=_MF_MAX){ try{showToast('⏳ Paiement en cours de confirmation… vous serez notifié.');}catch(e){} return; }
           setTimeout(_mfPoll,2000);return;
@@ -7888,12 +8023,23 @@ function loadMyAccounts(){
   if(_myAccUnsub)return;
   _myAccUnsub=db.collection('accountOrders').where('userId','==',currentUser.uid).onSnapshot(function(snap){
     myAccounts=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-      .filter(function(o){return o.status==='paid'||o.status==='delivered'||o.delivered;});
+      .filter(function(o){return (o.status==='paid'||o.status==='delivered'||o.delivered)&&!o.hiddenByUser;});
     renderProfilePurchases();
   },function(){});
 }
 function stopMyAccounts(){if(_myAccUnsub){_myAccUnsub();_myAccUnsub=null;}myAccounts=[];}
 function toggleAccCred(id,ev){try{if(ev)ev.stopPropagation();}catch(e){}var d=document.getElementById('acccred-'+id);if(d)d.style.display=(d.style.display==='none'||!d.style.display)?'block':'none';}
+// 🗑 Le client retire un compte acheté de son espace (masqué chez lui uniquement)
+async function deleteMyAccount(id,ev){
+  try{if(ev)ev.stopPropagation();}catch(e){}
+  if(!confirm('Supprimer ce compte de votre espace ?\nLes accès ne seront plus visibles ici. (Notez-les avant si besoin.)'))return;
+  try{
+    await db.collection('accountOrders').doc(id).set({hiddenByUser:true},{merge:true});
+    myAccounts=(myAccounts||[]).filter(function(o){return o.id!==id;});
+    renderProfilePurchases();
+    showToast('🗑 Compte retiré de votre espace');
+  }catch(e){showToast('❌ '+(e.message||'Échec'));}
+}
 function renderProfilePurchases(){
   var el=document.getElementById('pf-purchases');if(!el)return;
   var html='';
@@ -7913,6 +8059,7 @@ function renderProfilePurchases(){
           +'<div>Identifiant : <b>'+vEsc(c.login||'—')+'</b></div>'
           +'<div>Mot de passe : <b>'+vEsc(c.password||'—')+'</b></div>'
           +(c.notes?'<div>Notes : <b>'+vEsc(c.notes)+'</b></div>':'')
+          +'<button onclick="deleteMyAccount(\''+o.id+'\',event)" style="margin-top:8px;background:#ff3b5c22;color:#ff3b5c;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑 Supprimer de mon espace</button>'
         +'</div>':'')
       +'</div><span style="color:var(--text3)">›</span></div>';
   });
@@ -9100,7 +9247,7 @@ async function buyAccountWith(method,id){
     if(method==='points'){
       if(!pts){showToast('❌ Paiement en points non disponible pour ce compte');return;}
       if((userData.points||0)<pts){showToast('❌ Points insuffisants');return;}
-      if(!confirm('Acheter « '+(a.title||'ce compte')+' » pour '+pts+' points ?'))return;
+      if(!await asgConfirm({icon:'⭐',title:'Achat par points',message:'Acheter « '+(a.title||'ce compte')+' » pour '+pts+' points ?',okText:'Acheter',cancelText:'Annuler'}))return;
       await db.runTransaction(async function(tx){
         var us=await tx.get(uref);var p=((us.data()||{}).points)||0;
         if(p<pts)throw new Error('Points insuffisants');
@@ -9108,7 +9255,7 @@ async function buyAccountWith(method,id){
       });
     }else{
       if((userData.walletBalance||0)<price){showToast('❌ Solde insuffisant. Rechargez votre portefeuille.');return;}
-      if(!confirm('Acheter « '+(a.title||'ce compte')+' » pour '+fmtMoney(price)+' ?'))return;
+      if(!await asgConfirm({icon:'🛍️',title:'Acheter ce compte',message:'Acheter « '+(a.title||'ce compte')+' » pour '+fmtMoney(price)+' ?',okText:'Acheter',cancelText:'Annuler'}))return;
       await db.runTransaction(async function(tx){
         var us=await tx.get(uref);var bal=((us.data()||{}).walletBalance)||0;
         if(bal<price)throw new Error('Solde insuffisant');
