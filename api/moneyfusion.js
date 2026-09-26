@@ -116,6 +116,38 @@ module.exports = async (req, res) => {
     } catch (e) { return res.status(200).json({ error: e.message }); }
   }
 
+  // 🩺 DIAGNOSTIC : montre les derniers paiements + ce que MoneyFusion répond EN DIRECT.
+  //    Ouvre https://mgloot.com/api/moneyfusion?diag=1  juste après un paiement test.
+  //    → On voit si MoneyFusion dit "paid" tout de suite (retard chez nous) ou pas (retard MoneyFusion).
+  if (req.method === 'GET' && req.query && (req.query.diag === '1' || req.query.diag === 'true')) {
+    try {
+      getApp();
+      const db = admin.firestore();
+      const snap = await db.collection('moneyfusionPayments').orderBy('createdAt', 'desc').limit(6).get();
+      const out = [];
+      for (const doc of snap.docs) {
+        const d = doc.data() || {};
+        let live = null;
+        if (d.token) {
+          try {
+            const t0 = Date.now();
+            const r = await fetch(MF_VERIFY + encodeURIComponent(d.token), { headers: { 'Accept': 'application/json' } });
+            const j = await r.json().catch(() => ({}));
+            const dd = (j && j.data && typeof j.data === 'object') ? j.data : j;
+            live = { httpStatus: r.status, mfStatut: (dd && (dd.statut || dd.status)) || null, ms: Date.now() - t0 };
+          } catch (e) { live = { error: e.message }; }
+        }
+        out.push({
+          ref: doc.id, statusEnBase: d.status || '?', purpose: d.purpose || '?',
+          xof: d.xof || 0, aToken: !!d.token,
+          creeIlYaSec: d.createdAt && d.createdAt.toMillis ? Math.round((Date.now() - d.createdAt.toMillis()) / 1000) : null,
+          moneyFusionEnDirect: live
+        });
+      }
+      return res.status(200).json({ ok: true, verifyUrl: MF_VERIFY, derniers: out });
+    } catch (e) { return res.status(200).json({ error: e.message }); }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
